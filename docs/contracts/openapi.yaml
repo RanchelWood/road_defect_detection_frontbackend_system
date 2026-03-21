@@ -1,0 +1,514 @@
+﻿openapi: 3.1.0
+info:
+  title: Road Damage Defect System API
+  version: 0.1.0
+  description: Initial API contract for MVP image inference and authentication.
+servers:
+  - url: http://localhost:8000
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: Backend is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /auth/register:
+    post:
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelopeAuth'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/login:
+    post:
+      summary: Login with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelopeAuth'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/refresh:
+    post:
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Refreshed token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelopeAuth'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /auth/logout:
+    post:
+      summary: Logout current session
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelopeMessage'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /models:
+    get:
+      summary: List supported inference models
+      responses:
+        '200':
+          description: Models list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelopeModels'
+  /inference/image:
+    post:
+      summary: Run image inference
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+                - model_name
+              properties:
+                image:
+                  type: string
+                  format: binary
+                model_name:
+                  type: string
+      responses:
+        '200':
+          description: Inference success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelopeInference'
+        '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '422':
+          $ref: '#/components/responses/ErrorResponse'
+  /inference/{id}:
+    get:
+      summary: Get inference detail by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Inference detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelopeInference'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
+  /history:
+    get:
+      summary: List user inference history
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: model_name
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: History list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelopeHistory'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /ws/inference:
+    get:
+      summary: Reserved Phase 2 WebSocket contract endpoint
+      description: |
+        Placeholder path for real-time streaming. Session must lock selected model.
+        Model changes require stream restart.
+      responses:
+        '426':
+          description: Upgrade Required for WebSocket use
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    ErrorResponse:
+      description: Standard API error envelope
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    Meta:
+      type: object
+      required:
+        - request_id
+        - timestamp
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+    ErrorBody:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+    ErrorEnvelope:
+      type: object
+      required:
+        - success
+        - error
+        - meta
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        error:
+          $ref: '#/components/schemas/ErrorBody'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    RefreshRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+    AuthPayload:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+        - user
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: bearer
+        expires_in:
+          type: integer
+          example: 3600
+        user:
+          $ref: '#/components/schemas/UserPublic'
+    UserPublic:
+      type: object
+      required:
+        - id
+        - email
+        - role
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, user]
+    ModelMetadata:
+      type: object
+      required:
+        - name
+        - type
+        - status
+        - performance_notes
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          example: yolo
+        status:
+          type: string
+          enum: [active, deprecated, disabled]
+        performance_notes:
+          type: string
+    Detection:
+      type: object
+      required:
+        - label
+        - confidence
+        - bbox
+      properties:
+        label:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+        bbox:
+          type: object
+          required:
+            - x1
+            - y1
+            - x2
+            - y2
+          properties:
+            x1:
+              type: number
+            y1:
+              type: number
+            x2:
+              type: number
+            y2:
+              type: number
+    MediaRef:
+      type: object
+      required:
+        - id
+        - kind
+        - path
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: [original, annotated]
+        path:
+          type: string
+    InferencePayload:
+      type: object
+      required:
+        - id
+        - model_name
+        - timestamp
+        - detections
+        - image_refs
+      properties:
+        id:
+          type: string
+        model_name:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        detections:
+          type: array
+          items:
+            $ref: '#/components/schemas/Detection'
+        image_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MediaRef'
+    HistoryItem:
+      type: object
+      required:
+        - id
+        - model_name
+        - timestamp
+        - defect_count
+        - max_confidence
+      properties:
+        id:
+          type: string
+        model_name:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        defect_count:
+          type: integer
+        max_confidence:
+          type: number
+    SuccessEnvelopeAuth:
+      type: object
+      required:
+        - success
+        - data
+        - meta
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/AuthPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    SuccessEnvelopeModels:
+      type: object
+      required:
+        - success
+        - data
+        - meta
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required:
+            - items
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ModelMetadata'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    SuccessEnvelopeInference:
+      type: object
+      required:
+        - success
+        - data
+        - meta
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/InferencePayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    SuccessEnvelopeHistory:
+      type: object
+      required:
+        - success
+        - data
+        - meta
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required:
+            - items
+            - page
+            - page_size
+            - total
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/HistoryItem'
+            page:
+              type: integer
+            page_size:
+              type: integer
+            total:
+              type: integer
+        meta:
+          $ref: '#/components/schemas/Meta'
+    SuccessEnvelopeMessage:
+      type: object
+      required:
+        - success
+        - data
+        - meta
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          type: object
+          required:
+            - message
+          properties:
+            message:
+              type: string
+        meta:
+          $ref: '#/components/schemas/Meta'
