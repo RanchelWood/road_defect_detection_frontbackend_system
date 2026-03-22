@@ -1,6 +1,7 @@
-﻿import type { ApiEnvelope } from "../types";
+import type { ApiEnvelope } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+let unauthorizedHandler: (() => void) | null = null;
 
 export class ApiClientError extends Error {
   public readonly code: string;
@@ -19,21 +20,28 @@ async function parseJson<T>(response: Response): Promise<ApiEnvelope<T>> {
   return payload;
 }
 
-export async function postJson<TResponse, TBody>(
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
+async function requestJson<TResponse>(
   path: string,
-  body: TBody,
+  init: RequestInit,
   token?: string,
 ): Promise<TResponse> {
   const response = await fetch(`${API_BASE}${path}`, {
-    method: "POST",
+    ...init,
     headers: {
-      "Content-Type": "application/json",
+      ...(init.headers ?? {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    body: JSON.stringify(body),
   });
 
   const payload = await parseJson<TResponse>(response);
+
+  if (response.status === 401 && token) {
+    unauthorizedHandler?.();
+  }
 
   if (!response.ok || payload.success === false) {
     const code = payload.success === false ? payload.error.code : "HTTP_ERROR";
@@ -44,21 +52,45 @@ export async function postJson<TResponse, TBody>(
   return payload.data;
 }
 
-export async function getJson<TResponse>(path: string, token?: string): Promise<TResponse> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: "GET",
-    headers: {
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+export async function postJson<TResponse, TBody>(
+  path: string,
+  body: TBody,
+  token?: string,
+): Promise<TResponse> {
+  return requestJson<TResponse>(
+    path,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
     },
-  });
+    token,
+  );
+}
 
-  const payload = await parseJson<TResponse>(response);
+export async function postFormData<TResponse>(
+  path: string,
+  body: FormData,
+  token: string,
+): Promise<TResponse> {
+  return requestJson<TResponse>(
+    path,
+    {
+      method: "POST",
+      body,
+    },
+    token,
+  );
+}
 
-  if (!response.ok || payload.success === false) {
-    const code = payload.success === false ? payload.error.code : "HTTP_ERROR";
-    const message = payload.success === false ? payload.error.message : "Request failed";
-    throw new ApiClientError(message, code, response.status);
-  }
-
-  return payload.data;
+export async function getJson<TResponse>(path: string, token?: string): Promise<TResponse> {
+  return requestJson<TResponse>(
+    path,
+    {
+      method: "GET",
+    },
+    token,
+  );
 }

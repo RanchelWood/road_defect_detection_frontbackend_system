@@ -1,18 +1,17 @@
-﻿import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 
-import { health, logout } from "../api/auth";
+import { health } from "../api/auth";
 import { ApiClientError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { AppShell } from "../components/AppShell";
 
 export function DashboardPage() {
-  const navigate = useNavigate();
-  const { authState, clearAuth } = useAuth();
+  const { authState } = useAuth();
 
   const [healthStatus, setHealthStatus] = useState<string>("Not checked");
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loggingOut, setLoggingOut] = useState(false);
 
   async function handleCheckHealth() {
     setLoadingHealth(true);
@@ -31,37 +30,37 @@ export function DashboardPage() {
     }
   }
 
-  async function handleLogout() {
-    if (!authState) {
-      return;
-    }
-
-    setLoggingOut(true);
-    setError(null);
-
-    try {
-      await logout(authState.refreshToken);
-    } catch {
-      // Logout remains best-effort for local session cleanup.
-    } finally {
-      clearAuth();
-      navigate("/login", { replace: true });
-      setLoggingOut(false);
-    }
-  }
-
   if (!authState) {
     return null;
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-4xl flex-col p-6">
-      <header className="mb-6 rounded-xl bg-white p-6 shadow">
-        <h1 className="text-2xl font-semibold text-slate-900">Dashboard</h1>
-        <p className="mt-2 text-slate-600">Signed in as {authState.user.email}</p>
-      </header>
+    <AppShell
+      title="Dashboard"
+      description="Monitor connectivity, check your active session, and move into the inference workflow."
+    >
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="rounded-xl bg-white p-6 shadow">
+          <h2 className="mb-3 text-lg font-semibold text-slate-900">Workflow</h2>
+          <p className="mb-4 text-sm text-slate-600">
+            Submit a new image for inference or review previous jobs from your history.
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Link
+              className="rounded-md bg-brand-500 px-4 py-2 text-center font-medium text-white hover:bg-brand-700"
+              to="/inference"
+            >
+              Open inference
+            </Link>
+            <Link
+              className="rounded-md border border-slate-300 px-4 py-2 text-center font-medium text-slate-700 hover:bg-slate-50"
+              to="/history"
+            >
+              View history
+            </Link>
+          </div>
+        </section>
 
-      <main className="grid gap-4 md:grid-cols-2">
         <section className="rounded-xl bg-white p-6 shadow">
           <h2 className="mb-3 text-lg font-semibold text-slate-900">Backend Health</h2>
           <p className="mb-4 text-sm text-slate-600">Current status: {healthStatus}</p>
@@ -74,21 +73,15 @@ export function DashboardPage() {
           </button>
         </section>
 
-        <section className="rounded-xl bg-white p-6 shadow">
+        <section className="rounded-xl bg-white p-6 shadow md:col-span-2">
           <h2 className="mb-3 text-lg font-semibold text-slate-900">Session</h2>
           <p className="mb-2 text-sm text-slate-600">Role: {authState.user.role}</p>
           <p className="mb-4 break-all text-xs text-slate-500">Access token: {authState.accessToken}</p>
-          <button
-            className="rounded-md bg-slate-700 px-4 py-2 font-medium text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={handleLogout}
-            disabled={loggingOut}
-          >
-            {loggingOut ? "Logging out..." : "Logout"}
-          </button>
+          <p className="text-sm text-slate-600">Use the navigation above to move between dashboard, inference, and history.</p>
         </section>
-      </main>
+      </div>
 
       {error ? <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
-    </div>
+    </AppShell>
   );
 }

@@ -1,0 +1,487 @@
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+
+import { createInferenceJob, getInferenceJob, listModels } from "../api/inference";
+import { ApiClientError } from "../api/client";
+import { useAuth } from "../auth/AuthContext";
+import { AppShell } from "../components/AppShell";
+import { StatusBadge } from "../components/StatusBadge";
+import type { InferenceJobDetail, InferenceJobSubmission, ModelSummary } from "../types";
+
+const POLL_INTERVAL_MS = 2000;
+const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function formatTimestamp(value: string | null) {
+  if (!value) {
+    return "Not available";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return dateTimeFormatter.format(parsed);
+}
+
+function formatDuration(durationMs: number | undefined) {
+  if (typeof durationMs !== "number") {
+    return "Not available";
+  }
+
+  if (durationMs < 1000) {
+    return `${durationMs} ms`;
+  }
+
+  return `${(durationMs / 1000).toFixed(2)} s`;
+}
+
+function formatConfidence(confidence: number | null) {
+  if (confidence === null) {
+    return "N/A";
+  }
+
+  return `${(confidence * 100).toFixed(1)}%`;
+}
+
+function isWebRenderablePath(path: string) {
+  return path.startsWith("/") || path.startsWith("blob:") || path.startsWith("data:") || /^https?:\/\//i.test(path);
+}
+
+function getJobStatus(jobDetail: InferenceJobDetail | null, submission: InferenceJobSubmission | null) {
+  return jobDetail?.status ?? submission?.status ?? null;
+}
+
+export function InferencePage() {
+  const { authState } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const [models, setModels] = useState<ModelSummary[]>([]);
+  const [modelsLoading, setModelsLoading] = useState(true);
+  const [modelsError, setModelsError] = useState<string | null>(null);
+  const [selectedModelId, setSelectedModelId] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [trackedSubmission, setTrackedSubmission] = useState<InferenceJobSubmission | null>(null);
+  const [jobDetail, setJobDetail] = useState<InferenceJobDetail | null>(null);
+  const [jobError, setJobError] = useState<string | null>(null);
+
+  const jobIdFromRoute = searchParams.get("jobId");
+  const previewUrl = useMemo(() => {
+    if (!selectedFile) {
+      return null;
+    }
+
+    return URL.createObjectURL(selectedFile);
+  }, [selectedFile]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
+  const loadModels = useCallback(async () => {
+    if (!authState) {
+      return;
+    }
+
+    setModelsLoading(true);
+    setModelsError(null);
+
+    try {
+      const response = await listModels(authState.accessToken);
+      setModels(response.items);
+      setSelectedModelId((current) => current || response.items[0]?.model_id || "");
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setModelsError(err.message);
+      } else {
+        setModelsError("Unable to load model options.");
+      }
+    } finally {
+      setModelsLoading(false);
+    }
+  }, [authState]);
+
+  const loadJob = useCallback(
+    async (jobId: string) => {
+      if (!authState) {
+        return;
+      }
+
+      try {
+        const response = await getInferenceJob(authState.accessToken, jobId);
+        setJobDetail(response);
+        setTrackedSubmission((current) =>
+          current ?? {
+            job_id: response.job_id,
+            status: response.status,
+            model_id: response.model_id,
+            engine_id: response.engine_id,
+          },
+        );
+        setJobError(null);
+      } catch (err) {
+        if (err instanceof ApiClientError) {
+          setJobError(err.message);
+        } else {
+          setJobError("Unable to load the job status.");
+        }
+      }
+    },
+    [authState],
+  );
+
+  useEffect(() => {
+    void loadModels();
+  }, [loadModels]);
+
+  useEffect(() => {
+    if (!jobIdFromRoute) {
+      setJobDetail(null);
+      setTrackedSubmission(null);
+      setJobError(null);
+      return;
+    }
+
+    void loadJob(jobIdFromRoute);
+  }, [jobIdFromRoute, loadJob]);
+
+  const currentStatus = getJobStatus(jobDetail, trackedSubmission);
+
+  useEffect(() => {
+    if (!jobIdFromRoute || (currentStatus !== "queued" && currentStatus !== "running")) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void loadJob(jobIdFromRoute);
+    }, POLL_INTERVAL_MS);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [currentStatus, jobIdFromRoute, loadJob]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!authState || !selectedFile || !selectedModelId) {
+      return;
+    }
+
+    setSubmitting(true);
+    setSubmissionError(null);
+    setJobError(null);
+    setJobDetail(null);
+
+    try {
+      const response = await createInferenceJob(authState.accessToken, {
+        modelId: selectedModelId,
+        image: selectedFile,
+      });
+      setTrackedSubmission(response);
+      setSearchParams({ jobId: response.job_id });
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setSubmissionError(err.message);
+      } else {
+        setSubmissionError("Unable to submit the image for inference.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleResetWorkflow() {
+    setSelectedFile(null);
+    setSubmissionError(null);
+    setJobError(null);
+    setTrackedSubmission(null);
+    setJobDetail(null);
+    setSearchParams({});
+  }
+
+  const resolvedJobId = jobDetail?.job_id ?? trackedSubmission?.job_id ?? null;
+  const resolvedModelId = (jobDetail?.model_id ?? trackedSubmission?.model_id ?? selectedModelId) || "Not selected";
+  const resolvedEngineId = jobDetail?.engine_id ?? trackedSubmission?.engine_id ?? "Not available";
+  const annotatedImage = jobDetail?.result?.image_refs.find((item) => item.kind === "annotated") ?? null;
+  const renderableAnnotatedImage = annotatedImage && isWebRenderablePath(annotatedImage.path) ? annotatedImage.path : null;
+  const selectedModel = models.find((model) => model.model_id === selectedModelId) ?? null;
+
+  return (
+    <AppShell
+      title="Image Inference"
+      description="Select an available model, upload a road image, and track the job through queued, running, and terminal states."
+    >
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        <section className="rounded-2xl bg-white p-5 shadow sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900">Submit a job</h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Supported model presets come from the backend model registry.
+              </p>
+            </div>
+            <button
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              onClick={handleResetWorkflow}
+              type="button"
+            >
+              Clear state
+            </button>
+          </div>
+
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+            <label className="block text-sm font-medium text-slate-700">
+              Model
+              <select
+                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2"
+                disabled={modelsLoading || submitting || models.length === 0}
+                onChange={(event) => setSelectedModelId(event.target.value)}
+                value={selectedModelId}
+              >
+                {modelsLoading ? <option>Loading models...</option> : null}
+                {!modelsLoading && models.length === 0 ? <option>No models available</option> : null}
+                {models.map((model) => (
+                  <option key={model.model_id} value={model.model_id}>
+                    {model.display_name} ({model.model_id})
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {selectedModel ? (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                <p className="font-medium text-slate-900">{selectedModel.description}</p>
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                  <span>Engine: {selectedModel.engine_id}</span>
+                  <span>Runtime: {selectedModel.runtime_type}</span>
+                  <span>Status: {selectedModel.status}</span>
+                </div>
+                {selectedModel.performance_notes ? (
+                  <p className="mt-2 text-xs text-slate-500">{selectedModel.performance_notes}</p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <label className="block text-sm font-medium text-slate-700">
+              Image
+              <input
+                accept="image/*"
+                className="mt-1 block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                disabled={submitting}
+                onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+                type="file"
+              />
+            </label>
+
+            {!selectedFile ? (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                No image selected yet. Choose a file to enable submission.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">{selectedFile.name}</p>
+                    <p className="text-xs text-slate-500">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                  </div>
+                  <button
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-white"
+                    onClick={() => setSelectedFile(null)}
+                    type="button"
+                  >
+                    Remove file
+                  </button>
+                </div>
+                {previewUrl ? (
+                  <img
+                    alt="Selected upload preview"
+                    className="mt-4 max-h-72 w-full rounded-xl border border-slate-200 object-contain bg-white"
+                    src={previewUrl}
+                  />
+                ) : null}
+              </div>
+            )}
+
+            {modelsError ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{modelsError}</p> : null}
+            {submissionError ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{submissionError}</p> : null}
+
+            <button
+              className="w-full rounded-md bg-brand-500 px-4 py-2 font-medium text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={submitting || modelsLoading || !selectedFile || !selectedModelId}
+              type="submit"
+            >
+              {submitting ? "Submitting..." : "Submit inference job"}
+            </button>
+          </form>
+        </section>
+
+        <section className="space-y-6">
+          <div className="rounded-2xl bg-white p-5 shadow sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Job status</h2>
+                <p className="mt-1 text-sm text-slate-600">
+                  Polling continues automatically while the job is queued or running.
+                </p>
+              </div>
+
+              {currentStatus ? <StatusBadge status={currentStatus} /> : null}
+            </div>
+
+            {!resolvedJobId ? (
+              <div className="mt-6 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-10 text-sm text-slate-500">
+                No active job selected. Submit an image or open a previous result from{" "}
+                <Link className="font-medium text-brand-700" to="/history">
+                  history
+                </Link>
+                .
+              </div>
+            ) : (
+              <div className="mt-6 space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Job ID</p>
+                    <p className="mt-2 break-all text-sm text-slate-900">{resolvedJobId}</p>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Model / Engine</p>
+                    <p className="mt-2 text-sm text-slate-900">{resolvedModelId}</p>
+                    <p className="mt-1 text-xs text-slate-500">{resolvedEngineId}</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Created</p>
+                    <p className="mt-2 text-sm text-slate-900">{formatTimestamp(jobDetail?.created_at ?? null)}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Started</p>
+                    <p className="mt-2 text-sm text-slate-900">{formatTimestamp(jobDetail?.started_at ?? null)}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Finished</p>
+                    <p className="mt-2 text-sm text-slate-900">{formatTimestamp(jobDetail?.finished_at ?? null)}</p>
+                  </div>
+                </div>
+
+                {currentStatus === "queued" || currentStatus === "running" ? (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
+                    Job is currently <span className="font-semibold">{currentStatus}</span>. The page will keep polling
+                    until it reaches a terminal state.
+                  </div>
+                ) : null}
+
+                {currentStatus === "failed" ? (
+                  <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                    <p className="font-semibold">{jobDetail?.error?.code ?? "ENGINE_EXECUTION_FAILED"}</p>
+                    <p className="mt-1">{jobDetail?.error?.message ?? "Inference job failed."}</p>
+                  </div>
+                ) : null}
+
+                {jobError ? <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{jobError}</p> : null}
+              </div>
+            )}
+          </div>
+
+          {currentStatus === "succeeded" && jobDetail?.result ? (
+            <>
+              <div className="rounded-2xl bg-white p-5 shadow sm:p-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-slate-900">Result metadata</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Detection counts and image references returned by the completed job.
+                    </p>
+                  </div>
+
+                  <Link
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    to="/history"
+                  >
+                    Open history
+                  </Link>
+                </div>
+
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Detections</p>
+                    <p className="mt-2 text-xl font-semibold text-slate-900">{jobDetail.result.detections.length}</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Duration</p>
+                    <p className="mt-2 text-xl font-semibold text-slate-900">
+                      {formatDuration(jobDetail.result.duration_ms)}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-4">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Image refs</p>
+                    <p className="mt-2 text-xl font-semibold text-slate-900">{jobDetail.result.image_refs.length}</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-xl border border-slate-200 p-4">
+                  <h3 className="text-sm font-semibold text-slate-900">Annotated image</h3>
+                  {renderableAnnotatedImage ? (
+                    <img
+                      alt="Annotated inference result"
+                      className="mt-4 max-h-[28rem] w-full rounded-xl border border-slate-200 object-contain bg-slate-50"
+                      src={renderableAnnotatedImage}
+                    />
+                  ) : annotatedImage ? (
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                      Annotated image path is not web-renderable in the current backend setup:{" "}
+                      <span className="break-all font-medium">{annotatedImage.path}</span>
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-sm text-slate-500">No annotated image reference was returned for this job.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white p-5 shadow sm:p-6">
+                <h2 className="text-lg font-semibold text-slate-900">Detections</h2>
+                <p className="mt-1 text-sm text-slate-600">Normalized detection output from the backend job detail API.</p>
+
+                <div className="mt-6 overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 text-sm">
+                    <thead>
+                      <tr className="text-left text-slate-500">
+                        <th className="pb-3 pr-4 font-medium">Label</th>
+                        <th className="pb-3 pr-4 font-medium">Confidence</th>
+                        <th className="pb-3 pr-4 font-medium">x1</th>
+                        <th className="pb-3 pr-4 font-medium">y1</th>
+                        <th className="pb-3 pr-4 font-medium">x2</th>
+                        <th className="pb-3 font-medium">y2</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                      {jobDetail.result.detections.map((detection, index) => (
+                        <tr key={`${detection.label}-${index}`}>
+                          <td className="py-3 pr-4 font-medium text-slate-900">{detection.label}</td>
+                          <td className="py-3 pr-4">{formatConfidence(detection.confidence)}</td>
+                          <td className="py-3 pr-4">{detection.bbox.x1.toFixed(1)}</td>
+                          <td className="py-3 pr-4">{detection.bbox.y1.toFixed(1)}</td>
+                          <td className="py-3 pr-4">{detection.bbox.x2.toFixed(1)}</td>
+                          <td className="py-3">{detection.bbox.y2.toFixed(1)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          ) : null}
+        </section>
+      </div>
+    </AppShell>
+  );
+}

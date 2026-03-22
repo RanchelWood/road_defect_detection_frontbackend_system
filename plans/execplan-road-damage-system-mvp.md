@@ -19,7 +19,8 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-22 11:40Z) Milestone 2B post-review hardening completed: normalized job-result contract fields, idempotent SQLite backfill migration, adapter timeout classification, and startup queued/running reconciliation.
 - [x] (2026-03-22 12:30Z) Milestone 2C backend completed: `/history` user-scoped pagination/filtering, computed history stats, and polling-readiness preserved on `/inference/jobs/{job_id}`.
 - [x] (2026-03-22 12:45Z) Milestone 2C independently reviewed in main workflow; backend tests re-run and passing (`19 passed`).
-- [ ] Milestone 2D: implement frontend job submission, status polling, result rendering, and history navigation.
+- [x] (2026-03-22 13:40Z) Milestone 2D frontend completed: protected `/inference` + `/history` routes, async submit/polling UI, result/detection rendering, and paginated history navigation.
+- [x] (2026-03-22 14:05Z) Milestone 2D independently reviewed in main workflow; frontend build re-run and passing (`npm run build`).
 - [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [ ] Milestone 4: Phase 2 real-time streaming design/implementation after stable image-job flow.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
@@ -76,6 +77,10 @@ After this work, a beginner should be able to run a web system where a user can 
   Rationale: Persisted detections can vary by engine/runtime version; history endpoint should remain stable and non-failing.
   Date/Author: 2026-03-22 / Codex
 
+- Decision: Frontend must show a clear fallback message when annotated image references are non-web-renderable filesystem paths.
+  Rationale: Current backend returns local paths; explicit messaging avoids broken image UI while preserving operator visibility.
+  Date/Author: 2026-03-22 / Codex
+
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -87,6 +92,8 @@ Milestone 2B integration outcome (2026-03-22): backend now executes `rddc2020` t
 Milestone 2B hardening outcome (2026-03-22): job detail payloads now normalize to the declared detection schema, SQLite startup migration backfills Milestone 2B columns safely for older databases, adapter execution has explicit timeout classification, and startup reconciles queued/running jobs with documented durability limits.
 
 Milestone 2C backend outcome (2026-03-22): auth-protected /history now returns user-scoped paginated job history with optional model filter and safe computed detection stats, while /inference/jobs/{job_id} remains the polling endpoint for status/detail retrieval.
+
+Milestone 2D frontend outcome (2026-03-22): UI now supports protected inference and history navigation, image-job submission with model selection, automatic queued/running polling, terminal-state result/error rendering, and paginated history browsing with model filter and deep-link reopen to a prior job.
 
 ## Context and Orientation
 
@@ -104,7 +111,7 @@ Milestone 2B is complete. `rddc2020` execution now runs in per-job isolated work
 
 Milestone 2C implements persistence and retrieval. Store job status transitions (`queued`, `running`, `succeeded`, `failed`) and history metadata tied to user and model. Surface results through job detail and history endpoints.
 
-Milestone 2D updates frontend behavior. Replace sync inference submission with job create + polling flow, render queued/running states, and display final annotated output and detections.
+Milestone 2D is complete. Frontend now uses async job create + polling flow, renders queued/running/succeeded/failed states, displays result metadata/detections, and provides history navigation with filters and job deep-links.
 
 ## Concrete Steps
 
@@ -201,3 +208,5 @@ Plan change note (2026-03-22 / Codex): Applied Milestone 2B hardening fixes for 
 Plan change note (2026-03-22 / Codex): Reviewed Milestone 2B patch after delegation (`@Ptolemy`), re-ran backend tests (`16 passed`), and aligned progress/operations docs.
 Plan change note (2026-03-22 / Codex): Implemented Milestone 2C backend history endpoint with user-scoped pagination/filtering and robust computed stats handling; added endpoint tests.
 Plan change note (2026-03-22 / Codex): Independently reviewed Milestone 2C implementation after delegation (`@Ptolemy`), validated no blocking findings, and re-ran backend tests (`19 passed`).
+Plan change note (2026-03-22 / Codex): Delegated Milestone 2D frontend implementation to a dedicated GPT-5.4 UI worker (`@Anscombe`), then fixed final TypeScript precedence issue and completed build-clean handoff.
+Plan change note (2026-03-22 / Codex): Independently reviewed Milestone 2D frontend changes in main workflow and re-ran `frontend` build successfully.

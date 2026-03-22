@@ -1,4 +1,4 @@
-﻿import {
+import {
   createContext,
   useCallback,
   useContext,
@@ -9,6 +9,7 @@
 } from "react";
 
 import { refresh as refreshRequest } from "../api/auth";
+import { setUnauthorizedHandler } from "../api/client";
 import type { AuthPayload, UserPublic } from "../types";
 
 type AuthState = {
@@ -50,6 +51,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem(STORAGE_KEY);
     }
   }, [authState]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setAuthState(null);
+      window.location.replace("/login");
+    });
+
+    return () => {
+      setUnauthorizedHandler(null);
+    };
+  }, []);
 
   const setAuthFromPayload = useCallback((payload: AuthPayload) => {
     setAuthState({
