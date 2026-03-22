@@ -1,18 +1,33 @@
-﻿# Frontend Scaffold
+# Frontend (React + TypeScript)
 
-Planned frontend stack for implementation:
+This frontend now includes the Milestone 1 runnable scaffold with:
 
-- React + TypeScript
-- Tailwind CSS
-- shadcn/ui component patterns
-- State/query handling for API integration
+- `/login` page wired to backend `POST /auth/login`
+- `/register` page wired to backend `POST /auth/register`
+- Protected `/dashboard` page with:
+  - health check button for `GET /health`
+  - logout action for `POST /auth/logout`
+- Auth state persisted in local storage
 
-Expected source shape during implementation:
+## Local Run
 
-- `src/pages/` route-level pages (`login`, `register`, `dashboard`, `inference`, `history`)
-- `src/components/` reusable UI components
-- `src/api/` typed API client modules
-- `src/lib/` utilities and auth token helpers
-- `src/types/` shared frontend payload types
+From repository root:
 
-This directory is intentionally scaffold-only at this stage.
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+Open:
+
+- `http://localhost:5173/login`
+
+Set backend URL through `VITE_API_BASE_URL` in root `.env` (default `http://localhost:8000`).
+
+## Build Check
+
+```powershell
+cd frontend
+npm run build
+```

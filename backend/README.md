@@ -1,21 +1,49 @@
-﻿# Backend Scaffold
+# Backend (FastAPI)
 
-Planned backend stack for implementation:
+This backend now includes the Milestone 1 runnable scaffold with:
 
-- FastAPI
-- SQLAlchemy + Alembic
-- Pydantic schemas
-- JWT auth and bcrypt password hashing
-- Ultralytics YOLO inference service
+- `GET /health`
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+- SQLite persistence for users and refresh-token sessions
+- Standard API success/error envelopes with request metadata
 
-Expected source shape during implementation:
+## Local Run
 
-- `app/main.py` app factory and router inclusion
-- `app/api/` endpoint modules
-- `app/services/` auth, inference, model registry, storage
-- `app/repositories/` persistence logic
-- `app/models/` ORM entities
-- `app/schemas/` request/response schemas
-- `tests/` unit and integration tests
+From repository root:
 
-This directory is intentionally scaffold-only at this stage.
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Backend health check:
+
+```powershell
+curl http://localhost:8000/health
+```
+
+Expected response body shape:
+
+```json
+{
+  "success": true,
+  "data": { "status": "ok" },
+  "meta": {
+    "request_id": "...",
+    "timestamp": "..."
+  }
+}
+```
+
+## Tests
+
+```powershell
+cd backend
+python -m pytest tests
+```

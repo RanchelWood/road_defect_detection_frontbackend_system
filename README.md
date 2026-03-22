@@ -1,39 +1,68 @@
-﻿# Road Damage Defect System
+# Road Damage Defect System
 
-This repository now contains the full preparation package for implementing a YOLO-based road defect web system.
+This repository now has a runnable Milestone 1 baseline:
 
-Current status: preparation artifacts are complete; feature code implementation is the next phase guided by the living ExecPlan.
+- FastAPI backend scaffold with health + authentication flow
+- React frontend scaffold with login/register/dashboard
+- SQLite-backed user and refresh-token session storage
+- Docker Compose template for single-VM style startup
 
-## Core Planning Artifacts
+Image inference and history features are still planned for Milestone 2.
 
-- `plans/execplan-road-damage-system-mvp.md`: canonical living ExecPlan aligned with `plans/PLANS.md`
-- `docs/mvp-scope.md`: MVP boundary (in scope, out of scope, phase 2)
-- `docs/ux-wireframes-and-flows.md`: low-fidelity frontend wireframes and user flows
-- `docs/api-ui-mapping.md`: screen-to-endpoint mapping with UI states
+## Quick Start (Local)
 
-## Contracts and Data Model
+1. Copy env template:
 
-- `docs/contracts/openapi.yaml`: initial API contract
-- `docs/contracts/error-envelope.md`: standard error format
-- `docs/contracts/auth-session-rules.md`: auth lifecycle and role stub behavior
-- `docs/contracts/model-registry.md`: model selection and validation contract
-- `docs/contracts/realtime-websocket-contract.md`: reserved phase 2 streaming contract
-- `docs/architecture/data-model.md`: entities and relationships
+```powershell
+copy .env.example .env
+```
 
-## Engineering and Ops
+2. Start backend:
 
-- `docs/engineering/workflow-and-quality-gates.md`: setup, tests, quality bar
-- `docs/engineering/parallel-workstreams.md`: ownership model for parallel implementation
-- `docs/operations/runbook.md`: single-VM Docker runbook and observability baseline
-- `docs/operations/migration-paths.md`: upgrade paths (DB, storage, runtime, service split)
-- `infra/docker-compose.yml`: initial deployment template
-- `.env.example`: environment variable template
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-## Scaffold Directories
+3. Start frontend in a second terminal:
 
-- `frontend/README.md`: frontend implementation shape and stack
-- `backend/README.md`: backend implementation shape and stack
+```powershell
+cd frontend
+npm install
+npm run dev
+```
 
-## Next Step
+4. Open `http://localhost:5173/login`.
 
-Start implementation directly from `plans/execplan-road-damage-system-mvp.md` Milestone 1 and keep the living sections updated at every stop point.
+## Milestone 1 Delivered Endpoints
+
+- `GET /health`
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/refresh`
+- `POST /auth/logout`
+
+## Validation Commands
+
+Backend tests:
+
+```powershell
+cd backend
+python -m pytest tests
+```
+
+Frontend build check:
+
+```powershell
+cd frontend
+npm run build
+```
+
+## Execution Plan
+
+Implementation must continue from:
+
+- `plans/execplan-road-damage-system-mvp.md`

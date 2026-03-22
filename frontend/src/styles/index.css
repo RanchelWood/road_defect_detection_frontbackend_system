@@ -1,0 +1,21 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: radial-gradient(circle at top left, #edf7ef 0%, #f8fafc 40%, #f8fafc 100%);
+  min-height: 100vh;
+}
+
+input,
+button,
+select {
+  font: inherit;
+}
