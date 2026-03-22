@@ -17,7 +17,8 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-22 07:30Z) Milestone 2A completed: multi-engine adapter interfaces, auth-protected `/models`, async `/inference/jobs` contract, queued job persistence, and contract tests.
 - [x] (2026-03-22 10:50Z) Milestone 2B integration completed: `rddc2020` adapter command execution path, async dispatch wiring, job state transitions, and persisted outputs/errors.
 - [x] (2026-03-22 11:40Z) Milestone 2B post-review hardening completed: normalized job-result contract fields, idempotent SQLite backfill migration, adapter timeout classification, and startup queued/running reconciliation.
-- [ ] Milestone 2C: implement job lifecycle persistence, history linkage, and status polling endpoints.
+- [x] (2026-03-22 12:30Z) Milestone 2C backend completed: `/history` user-scoped pagination/filtering, computed history stats, and polling-readiness preserved on `/inference/jobs/{job_id}`.
+- [x] (2026-03-22 12:45Z) Milestone 2C independently reviewed in main workflow; backend tests re-run and passing (`19 passed`).
 - [ ] Milestone 2D: implement frontend job submission, status polling, result rendering, and history navigation.
 - [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [ ] Milestone 4: Phase 2 real-time streaming design/implementation after stable image-job flow.
@@ -71,6 +72,10 @@ After this work, a beginner should be able to run a web system where a user can 
   Rationale: Delivers restart recovery now without introducing a queue service in the same milestone.
   Date/Author: 2026-03-22 / Codex
 
+- Decision: History statistic extraction must degrade safely on malformed or legacy detection payloads.
+  Rationale: Persisted detections can vary by engine/runtime version; history endpoint should remain stable and non-failing.
+  Date/Author: 2026-03-22 / Codex
+
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -80,6 +85,8 @@ Milestone 2A outcome (2026-03-22): backend now exposes auth-protected model list
 Milestone 2B integration outcome (2026-03-22): backend now executes `rddc2020` through per-job isolated workspace/output paths and transitions jobs `queued -> running -> succeeded/failed` with persisted result/error metadata.
 
 Milestone 2B hardening outcome (2026-03-22): job detail payloads now normalize to the declared detection schema, SQLite startup migration backfills Milestone 2B columns safely for older databases, adapter execution has explicit timeout classification, and startup reconciles queued/running jobs with documented durability limits.
+
+Milestone 2C backend outcome (2026-03-22): auth-protected /history now returns user-scoped paginated job history with optional model filter and safe computed detection stats, while /inference/jobs/{job_id} remains the polling endpoint for status/detail retrieval.
 
 ## Context and Orientation
 
@@ -192,3 +199,5 @@ Plan change note (2026-03-22 / Codex): Pivoted Milestone 2 to external `rddc2020
 Plan change note (2026-03-22 / Codex): Implemented Milestone 2A backend scaffolding (adapter interfaces, models endpoint, jobs endpoint, queued persistence, and tests passing).
 Plan change note (2026-03-22 / Codex): Applied Milestone 2B hardening fixes for contract alignment, SQLite migration safety, timeout classification, and restart reconciliation with tests.
 Plan change note (2026-03-22 / Codex): Reviewed Milestone 2B patch after delegation (`@Ptolemy`), re-ran backend tests (`16 passed`), and aligned progress/operations docs.
+Plan change note (2026-03-22 / Codex): Implemented Milestone 2C backend history endpoint with user-scoped pagination/filtering and robust computed stats handling; added endpoint tests.
+Plan change note (2026-03-22 / Codex): Independently reviewed Milestone 2C implementation after delegation (`@Ptolemy`), validated no blocking findings, and re-ran backend tests (`19 passed`).

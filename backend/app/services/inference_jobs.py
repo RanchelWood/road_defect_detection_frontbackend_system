@@ -1,4 +1,5 @@
-﻿import json
+import json
+import math
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -167,6 +168,90 @@ class InferenceJobService:
                 },
             )
         return job
+
+    def list_history(
+        self,
+        db: Session,
+        user: User,
+        page: int = 1,
+        page_size: int = 20,
+        model_id: str | None = None,
+    ) -> dict[str, object]:
+        query = db.query(InferenceJob).filter(InferenceJob.user_id == user.id)
+        if model_id:
+            query = query.filter(InferenceJob.model_id == model_id)
+
+        total = query.count()
+        jobs = (
+            query.order_by(InferenceJob.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .all()
+        )
+        items = [self._build_history_item(job) for job in jobs]
+        return {
+            "items": items,
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+        }
+
+    def _build_history_item(self, job: InferenceJob) -> dict[str, object]:
+        timestamp = job.finished_at or job.started_at or job.created_at
+        item: dict[str, object] = {
+            "job_id": job.id,
+            "model_id": job.model_id,
+            "engine_id": job.engine_id,
+            "status": job.status,
+            "timestamp": timestamp.isoformat(),
+        }
+
+        defect_count, max_confidence = self._extract_detection_stats(job.detections_json)
+        if defect_count is not None:
+            item["defect_count"] = defect_count
+        if max_confidence is not None:
+            item["max_confidence"] = max_confidence
+
+        return item
+
+    def _extract_detection_stats(self, detections_json: str | None) -> tuple[int | None, float | None]:
+        if not detections_json:
+            return None, None
+
+        try:
+            parsed = json.loads(detections_json)
+        except json.JSONDecodeError:
+            return None, None
+
+        if not isinstance(parsed, list):
+            return None, None
+
+        defect_count = 0
+        confidences: list[float] = []
+
+        for item in parsed:
+            if not isinstance(item, dict):
+                continue
+            defect_count += 1
+
+            confidence = item.get("confidence")
+            if confidence is None:
+                continue
+
+            try:
+                confidence_value = float(confidence)
+            except (TypeError, ValueError):
+                continue
+
+            if not math.isfinite(confidence_value):
+                continue
+            if confidence_value < 0 or confidence_value > 1:
+                continue
+
+            confidences.append(confidence_value)
+
+        max_confidence = max(confidences) if confidences else None
+        return defect_count, max_confidence
 
     def _validate_model(self, model_id: str):
         try:
