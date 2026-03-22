@@ -1,4 +1,4 @@
-from collections.abc import Generator
+﻿from collections.abc import Generator
 from pathlib import Path
 
 from sqlalchemy import create_engine
@@ -30,8 +30,9 @@ def get_db() -> Generator[Session, None, None]:
 
 def init_db() -> None:
     from app.models.base import Base
+    from app.models.inference_job import InferenceJob
     from app.models.refresh_token import RefreshToken
     from app.models.user import User
 
-    _ = (User, RefreshToken)
+    _ = (User, RefreshToken, InferenceJob)
     Base.metadata.create_all(bind=engine)

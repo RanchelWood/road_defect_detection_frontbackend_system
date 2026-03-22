@@ -1,11 +1,11 @@
-from pathlib import Path
+﻿from pathlib import Path
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import auth, health
+from app.api.routes import auth, health, inference_jobs, models
 from app.core.config import get_settings
 from app.core.database import init_db
 from app.core.response import error_response
@@ -71,6 +71,8 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router, tags=["health"])
     app.include_router(auth.router, prefix="/auth", tags=["auth"])
+    app.include_router(models.router, tags=["models"])
+    app.include_router(inference_jobs.router, tags=["inference"])
 
     @app.on_event("startup")
     def on_startup() -> None:

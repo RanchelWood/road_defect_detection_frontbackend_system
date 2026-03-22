@@ -14,7 +14,7 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-21 00:00Z) Created canonical living ExecPlan with mandatory sections and milestone structure.
 - [x] (2026-03-22 03:30Z) Implemented Milestone 1 foundations: runnable FastAPI + React scaffolds, Dockerfiles, health endpoint, and auth flow baseline with tests.
 - [x] (2026-03-22 06:20Z) Replanned Milestone 2 to integrate external `rddc2020` CLI instead of in-process inference implementation.
-- [ ] Milestone 2A: add multi-engine inference adapter interfaces and async job contract in backend.
+- [x] (2026-03-22 07:30Z) Milestone 2A completed: multi-engine adapter interfaces, auth-protected `/models`, async `/inference/jobs` contract, queued job persistence, and contract tests.
 - [ ] Milestone 2B: integrate `rddc2020` as first engine via isolated command runner/service path.
 - [ ] Milestone 2C: implement job lifecycle persistence, history linkage, and status polling endpoints.
 - [ ] Milestone 2D: implement frontend job submission, status polling, result rendering, and history navigation.
@@ -51,9 +51,14 @@ After this work, a beginner should be able to run a web system where a user can 
   Rationale: Keeps milestone risk manageable while integrating external runtime safely.
   Date/Author: 2026-03-22 / Codex
 
+- Decision: Use static in-code model presets and queued-only dispatcher in Milestone 2A.
+  Rationale: Delivers stable contracts first while deferring real engine execution to Milestone 2B.
+  Date/Author: 2026-03-22 / Codex
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
+
+Milestone 2A outcome (2026-03-22): backend now exposes auth-protected model listing and async inference job contract with queued persistence. Remaining work moves to Milestone 2B for real `rddc2020` command execution and status transitions beyond queued.
 
 ## Context and Orientation
 
@@ -154,3 +159,4 @@ The first adapter implementation targets `rddc2020-cli`; additional engines must
 Plan change note (2026-03-21 / Codex): Initial creation of the living ExecPlan from PRD and master preparation plan.
 Plan change note (2026-03-22 / Codex): Executed Milestone 1 scaffolding with runnable health/auth flow.
 Plan change note (2026-03-22 / Codex): Pivoted Milestone 2 to external `rddc2020` async integration with multi-engine adapter-first design.
+Plan change note (2026-03-22 / Codex): Implemented Milestone 2A backend scaffolding (adapter interfaces, models endpoint, jobs endpoint, queued persistence, and tests passing).
