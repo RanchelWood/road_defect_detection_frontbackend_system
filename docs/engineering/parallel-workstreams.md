@@ -2,6 +2,14 @@
 
 This document defines parallel ownership for Milestone 2 external integration.
 
+## Thread Structure (Workflow Governance)
+
+- Team Leader
+  - Frontend Engineer
+  - Backend Engineer
+  - Test Engineer
+  - Junior developer guidance and repository walkthrough support
+
 ## Workstream A: Product and UX
 
 Ownership:
@@ -61,10 +69,26 @@ Deliverables:
 Ownership:
 
 - `docs/engineering/workflow-and-quality-gates.md`
+- `docs/engineering/test-engineer-workflow.md`
 - validation sections in ExecPlan
 
 Deliverables:
 
 - Adapter and lifecycle test matrix.
 - Concurrency and failure-mode checklist.
+- Bug lifecycle governance (`new -> triaged -> in progress -> fixed -> needs retest -> closed`).
 - Decision-log consolidation in living ExecPlan.
+
+## Workstream F: Bug Discovery, Reproduction, and Verification
+
+Ownership:
+
+- Test Engineer thread operations
+- bug report templates and assignment/retest templates in workflow docs
+- release-candidate smoke regression evidence
+
+Deliverables:
+
+- Reproducible bug reports with severity, area classification, and suspected owner.
+- Retest outcomes for every fixed issue before closure.
+- Escalation list for integration or unclear ownership defects.

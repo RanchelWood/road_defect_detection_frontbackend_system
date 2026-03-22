@@ -21,6 +21,7 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-22 12:45Z) Milestone 2C independently reviewed in main workflow; backend tests re-run and passing (`19 passed`).
 - [x] (2026-03-22 13:40Z) Milestone 2D frontend completed: protected `/inference` + `/history` routes, async submit/polling UI, result/detection rendering, and paginated history navigation.
 - [x] (2026-03-22 14:05Z) Milestone 2D independently reviewed in main workflow; frontend build re-run and passing (`npm run build`).
+- [x] (2026-03-22 15:00Z) Workflow governance update completed: added Test Engineer thread role, bug lifecycle states, and standard bug-report/assignment/retest templates.
 - [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [ ] Milestone 4: Phase 2 real-time streaming design/implementation after stable image-job flow.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
@@ -81,6 +82,10 @@ After this work, a beginner should be able to run a web system where a user can 
   Rationale: Current backend returns local paths; explicit messaging avoids broken image UI while preserving operator visibility.
   Date/Author: 2026-03-22 / Codex
 
+- Decision: Adopt a verification-gated bug lifecycle managed by Team Leader with a dedicated Test Engineer thread.
+  Rationale: Keeps MVP debugging structured and beginner-friendly while preventing unverified closures.
+  Date/Author: 2026-03-22 / Codex
+
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -94,6 +99,8 @@ Milestone 2B hardening outcome (2026-03-22): job detail payloads now normalize t
 Milestone 2C backend outcome (2026-03-22): auth-protected /history now returns user-scoped paginated job history with optional model filter and safe computed detection stats, while /inference/jobs/{job_id} remains the polling endpoint for status/detail retrieval.
 
 Milestone 2D frontend outcome (2026-03-22): UI now supports protected inference and history navigation, image-job submission with model selection, automatic queued/running polling, terminal-state result/error rendering, and paginated history browsing with model filter and deep-link reopen to a prior job.
+
+Workflow governance outcome (2026-03-22): Team workflow now includes a dedicated Test Engineer role with reproducible bug reporting templates, Team Leader triage/assignment templates, and mandatory retest verification before issue closure.
 
 ## Context and Orientation
 
@@ -161,6 +168,7 @@ Maintain these artifacts during implementation:
     docs/architecture/system-architecture.md
     docs/architecture/data-model.md
     docs/operations/runbook.md
+    docs/engineering/test-engineer-workflow.md
 
 Capture concise evidence snippets after milestone implementation:
 
@@ -210,3 +218,4 @@ Plan change note (2026-03-22 / Codex): Implemented Milestone 2C backend history 
 Plan change note (2026-03-22 / Codex): Independently reviewed Milestone 2C implementation after delegation (`@Ptolemy`), validated no blocking findings, and re-ran backend tests (`19 passed`).
 Plan change note (2026-03-22 / Codex): Delegated Milestone 2D frontend implementation to a dedicated GPT-5.4 UI worker (`@Anscombe`), then fixed final TypeScript precedence issue and completed build-clean handoff.
 Plan change note (2026-03-22 / Codex): Independently reviewed Milestone 2D frontend changes in main workflow and re-ran `frontend` build successfully.
+Plan change note (2026-03-22 / Codex): Added Test Engineer workflow governance docs (role responsibilities, bug lifecycle, and standard reporting/assignment/retest templates).

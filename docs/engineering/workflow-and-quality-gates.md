@@ -10,6 +10,13 @@ This workflow is beginner-friendly and aligned with external engine integration.
 - `docs/` contracts, architecture, runbooks, and planning docs.
 - `plans/` living ExecPlans.
 
+## Team Roles and Ownership
+
+- Team Leader: triage owner, delegation owner, closure owner, and junior developer guide.
+- Frontend Engineer: GUI, frontend state, navigation, and API integration handling in `frontend/`.
+- Backend Engineer: API behavior, validation, persistence, and runtime integration in `backend/`.
+- Test Engineer: bug discovery, reproducible reporting, retest verification, and smoke regression evidence.
+
 ## Environment Setup (Windows-Friendly)
 
 Backend:
@@ -38,6 +45,48 @@ External engine runtime (`rddc2020`):
 - Engine adapter tests: success path, missing weight path, malformed output path.
 - Concurrency tests: two jobs cannot overwrite outputs.
 - UI tests: submit -> poll -> success/failure rendering.
+- Test Engineer smoke checks for release candidates:
+  - register/login/logout
+  - protected route redirect behavior
+  - model load + image submit
+  - job polling transition behavior
+  - succeeded/failed rendering paths
+  - history list/filter/pagination
+  - deep-link to inference job
+  - forced API failure UX
+  - forced 401 redirect and session clear
+
+## Bug Lifecycle and Verification Gate
+
+Required status model:
+
+- `new`
+- `triaged`
+- `in progress`
+- `fixed`
+- `needs retest`
+- `closed`
+
+Required flow:
+
+1. User report or Test Engineer discovery creates a bug in `new`.
+2. Team Leader triages ownership and severity, then marks `triaged`.
+3. Assigned engineer works in `in progress` and submits fix as `fixed`.
+4. Team Leader sends issue to Test Engineer and marks `needs retest`.
+5. Test Engineer verifies:
+   - pass -> `closed`
+   - fail -> reopen to `triaged` with retest evidence.
+
+Closure rule:
+
+- No bug is closed without Test Engineer verification evidence.
+
+Ownership rule:
+
+- `frontend` -> Frontend Engineer
+- `backend` -> Backend Engineer
+- `integration` -> primary owner + secondary reviewer
+- `unclear` -> short investigation task first
 
 ## Quality Gates
 
@@ -48,6 +97,10 @@ Before merge to main branch:
 - Adapter contract tests pass for first engine.
 - API contract changes reflected in docs.
 - ExecPlan progress and Decision Log updated.
+- Every bug fix includes:
+  - bug ID
+  - owner note
+  - retest result from Test Engineer before closure.
 
 ## Non-Functional Baselines
 
