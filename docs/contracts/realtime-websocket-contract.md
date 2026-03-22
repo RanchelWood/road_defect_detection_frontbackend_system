@@ -1,6 +1,6 @@
-﻿# Phase 2 WebSocket Contract
+# Phase 2 WebSocket Contract
 
-This contract is reserved for real-time streaming implementation after image MVP stability.
+This contract is reserved for real-time streaming implementation after image-job MVP stability.
 
 ## Endpoint
 
@@ -9,9 +9,10 @@ This contract is reserved for real-time streaming implementation after image MVP
 ## Session Rules
 
 - Client must provide valid auth token at connection.
-- Client must provide selected `model_name` when session starts.
+- Client must provide selected `model_id` when session starts.
+- Backend resolves `model_id` to engine/model preset.
 - Model remains fixed during session.
-- To change model, client must close stream and reconnect with new model.
+- To change model, client must close stream and reconnect with new `model_id`.
 
 ## Message Shapes
 
@@ -21,7 +22,7 @@ Client -> Server (frame payload):
 {
   "type": "frame",
   "frame_id": "f-001",
-  "timestamp": "2026-03-21T11:00:00Z",
+  "timestamp": "2026-03-22T11:00:00Z",
   "image_base64": "..."
 }
 ```
@@ -32,7 +33,8 @@ Server -> Client (annotated result):
 {
   "type": "result",
   "frame_id": "f-001",
-  "model_name": "yolov8n",
+  "model_id": "rddc2020-imsc-last95",
+  "engine_id": "rddc2020-cli",
   "detections": [
     {"label": "crack", "confidence": 0.91, "bbox": {"x1": 11, "y1": 20, "x2": 88, "y2": 64}}
   ],

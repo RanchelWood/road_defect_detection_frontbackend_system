@@ -1,16 +1,14 @@
-﻿# Engineering Workflow and Quality Gates
+# Engineering Workflow and Quality Gates
 
-This workflow is written for beginner-friendly implementation with consistent team habits.
+This workflow is beginner-friendly and aligned with external engine integration.
 
 ## Repository Conventions
 
-Recommended structure:
-
-- `backend/` FastAPI app, services, repositories, tests.
-- `frontend/` React app, pages, components, API client, tests.
-- `infra/` Docker Compose and environment templates.
-- `docs/` product, contracts, runbooks, and migration notes.
-- `plans/` living ExecPlans and requirement references.
+- `backend/` FastAPI app, adapters, services, repositories, tests.
+- `frontend/` React pages, components, API clients, tests.
+- `infra/` compose files and environment templates.
+- `docs/` contracts, architecture, runbooks, and planning docs.
+- `plans/` living ExecPlans.
 
 ## Environment Setup (Windows-Friendly)
 
@@ -27,38 +25,42 @@ Frontend:
 2. Install dependencies in `frontend`.
 3. Start dev server.
 
-Container path:
+External engine runtime (`rddc2020`):
 
-1. Copy `.env.example` to `.env`.
-2. Run `docker compose -f infra/docker-compose.yml up --build`.
+1. Ensure sibling path exists: `D:\road_defect_detection\rddc2020`.
+2. Ensure engine dependencies and weights are available in that runtime.
+3. Validate `detect.py` command manually before backend adapter integration tests.
 
 ## Test Strategy by Layer
 
-- Unit tests: services and utility logic.
-- API integration tests: auth, inference, history endpoints.
-- UI tests: key component states and page flows.
-- End-to-end happy path: register -> login -> infer image -> view history.
+- Unit tests: model validation, adapter argument mapping, CSV parser normalization.
+- API integration tests: auth, job creation, job polling, history retrieval.
+- Engine adapter tests: success path, missing weight path, malformed output path.
+- Concurrency tests: two jobs cannot overwrite outputs.
+- UI tests: submit -> poll -> success/failure rendering.
 
 ## Quality Gates
 
 Before merge to main branch:
 
 - Backend tests pass.
-- Frontend tests pass.
-- Lint checks pass (frontend and backend).
+- Frontend tests/build pass.
+- Adapter contract tests pass for first engine.
 - API contract changes reflected in docs.
-- ExecPlan progress and decision log updated.
+- ExecPlan progress and Decision Log updated.
 
 ## Non-Functional Baselines
 
-- Image inference target: under 2 seconds on representative image and CPU baseline.
-- API p95 target for non-inference endpoints: under 300ms in local benchmark.
-- Every failed request logs request id and categorized error code.
+- Job creation endpoint p95 under 300ms (queue operation only).
+- Job status polling endpoint p95 under 300ms.
+- Inference job timing captured per engine/model for benchmarking.
+- Every failed job logs `request_id`, `job_id`, `engine_id`, `model_id`, `error_code`.
 
 ## Security Checklist
 
 - Password hashing with bcrypt.
 - JWT validation on protected routes.
 - File upload type and size validation.
-- Server-side input validation on all payloads.
-- Secrets only through environment variables, never hardcoded.
+- Server-side validation for `model_id` and job ownership.
+- External command execution strictly from allowlisted model presets and paths.
+- Secrets through env vars only.

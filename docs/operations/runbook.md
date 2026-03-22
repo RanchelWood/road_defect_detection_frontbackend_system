@@ -1,50 +1,63 @@
-﻿# Operations Runbook (Single VM, Docker Compose)
+# Operations Runbook (Single VM, External Engine Integration)
 
-This runbook defines the default deployment and runtime operations model for v1.
+This runbook defines v1 runtime operations with backend/frontend plus external inference engine integration.
 
 ## Deployment Topology
 
-- One VM hosting Docker Engine and Docker Compose.
-- Services: `backend`, `frontend`, and optional reverse proxy.
-- Named volumes: one for SQLite data and one for media files.
+- One VM hosting backend and frontend services.
+- External inference runtime for first engine (`rddc2020`) available via sibling path or sidecar container.
+- Named volumes for SQLite and media artifacts.
+- Job workspace directories for per-job engine execution outputs.
 
 ## Startup
 
 1. Ensure `.env` exists from `.env.example`.
-2. Run `docker compose -f infra/docker-compose.yml up -d --build`.
-3. Verify service health.
+2. Start backend and frontend services.
+3. Verify `rddc2020` runtime path and required weights are available.
+4. Validate backend health and a dry-run engine command path check.
 
 ## Health and Observability Baseline
 
-Required structured log fields:
+Required structured fields:
 
 - `request_id`
+- `job_id`
+- `engine_id`
+- `model_id`
 - `route`
-- `status_code`
+- `status`
 - `duration_ms`
-- `model_name` (for inference routes)
-- `error_code` (for failures)
+- `error_code`
 
 Operational checks:
 
-- Backend health endpoint returns 200.
-- Frontend page is reachable.
-- Recent inference logs include timing metrics.
+- Backend `/health` returns 200.
+- Job creation endpoint accepts request and returns queued state.
+- Polling endpoint transitions jobs to terminal states.
+- Logs show command runtime and failures with context.
 
 ## Backup and Recovery (v1)
 
 Daily backup scope:
 
-- SQLite database file volume.
-- Media volume (original and annotated images).
+- SQLite database volume.
+- Media volume.
+- Job artifact directories (if retained for debugging policy window).
 
 Recovery steps:
 
 1. Stop services.
-2. Restore database and media from backup snapshot.
+2. Restore database and media/artifacts from backup.
 3. Start services.
-4. Verify health endpoint and a sample history query.
+4. Verify auth, models, and history query.
+
+## Engine Isolation Rules
+
+- Run each inference job in unique working/output directory.
+- Never reuse shared output directory across concurrent jobs.
+- Do not execute arbitrary command arguments from clients.
+- Restrict execution to allowlisted model presets.
 
 ## CPU and Optional GPU Runtime
 
-Default mode is CPU-only. If GPU is available later, enable a GPU-specific compose profile and verify inference latency improvements with the same benchmark image set.
+Default is CPU-first. If GPU runtime is introduced later, keep API contract unchanged and benchmark per-engine latency deltas before rollout.

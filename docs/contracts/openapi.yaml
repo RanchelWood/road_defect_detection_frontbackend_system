@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
   title: Road Damage Defect System API
-  version: 0.1.0
-  description: Initial API contract for MVP image inference and authentication.
+  version: 0.2.0
+  description: Async external-engine integration contract for MVP image inference.
 servers:
   - url: http://localhost:8000
 security:
@@ -37,6 +37,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessEnvelopeAuth'
         '400':
+          $ref: '#/components/responses/ErrorResponse'
+        '409':
           $ref: '#/components/responses/ErrorResponse'
   /auth/login:
     post:
@@ -78,6 +80,12 @@ paths:
   /auth/logout:
     post:
       summary: Logout current session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
       responses:
         '200':
           description: Logged out
@@ -85,11 +93,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessEnvelopeMessage'
-        '401':
-          $ref: '#/components/responses/ErrorResponse'
   /models:
     get:
-      summary: List supported inference models
+      summary: List supported model presets across engines
       responses:
         '200':
           description: Models list
@@ -97,9 +103,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SuccessEnvelopeModels'
-  /inference/image:
+  /inference/jobs:
     post:
-      summary: Run image inference
+      summary: Create async image inference job
       requestBody:
         required: true
         content:
@@ -108,49 +114,49 @@ paths:
               type: object
               required:
                 - image
-                - model_name
+                - model_id
               properties:
                 image:
                   type: string
                   format: binary
-                model_name:
+                model_id:
                   type: string
       responses:
-        '200':
-          description: Inference success
+        '202':
+          description: Job queued
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessEnvelopeInference'
+                $ref: '#/components/schemas/SuccessEnvelopeJobAccepted'
         '400':
           $ref: '#/components/responses/ErrorResponse'
         '401':
           $ref: '#/components/responses/ErrorResponse'
         '422':
           $ref: '#/components/responses/ErrorResponse'
-  /inference/{id}:
+  /inference/jobs/{job_id}:
     get:
-      summary: Get inference detail by ID
+      summary: Get inference job status and result
       parameters:
-        - name: id
+        - name: job_id
           in: path
           required: true
           schema:
             type: string
       responses:
         '200':
-          description: Inference detail
+          description: Job status
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SuccessEnvelopeInference'
+                $ref: '#/components/schemas/SuccessEnvelopeJobStatus'
         '401':
           $ref: '#/components/responses/ErrorResponse'
         '404':
           $ref: '#/components/responses/ErrorResponse'
   /history:
     get:
-      summary: List user inference history
+      summary: List current user's inference job history
       parameters:
         - name: page
           in: query
@@ -165,7 +171,7 @@ paths:
             minimum: 1
             maximum: 100
             default: 20
-        - name: model_name
+        - name: model_id
           in: query
           schema:
             type: string
@@ -181,9 +187,7 @@ paths:
   /ws/inference:
     get:
       summary: Reserved Phase 2 WebSocket contract endpoint
-      description: |
-        Placeholder path for real-time streaming. Session must lock selected model.
-        Model changes require stream restart.
+      description: Placeholder path for post-MVP streaming behavior.
       responses:
         '426':
           description: Upgrade Required for WebSocket use
@@ -270,6 +274,28 @@ components:
       properties:
         refresh_token:
           type: string
+    LogoutRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+    UserPublic:
+      type: object
+      required:
+        - id
+        - email
+        - role
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, user]
     AuthPayload:
       type: object
       required:
@@ -290,34 +316,18 @@ components:
           example: 3600
         user:
           $ref: '#/components/schemas/UserPublic'
-    UserPublic:
-      type: object
-      required:
-        - id
-        - email
-        - role
-      properties:
-        id:
-          type: integer
-        email:
-          type: string
-          format: email
-        role:
-          type: string
-          enum: [admin, user]
     ModelMetadata:
       type: object
       required:
-        - name
-        - type
+        - model_id
+        - engine_id
         - status
         - performance_notes
       properties:
-        name:
+        model_id:
           type: string
-        type:
+        engine_id:
           type: string
-          example: yolo
         status:
           type: string
           enum: [active, deprecated, disabled]
@@ -366,22 +376,29 @@ components:
           enum: [original, annotated]
         path:
           type: string
-    InferencePayload:
+    JobAcceptedPayload:
       type: object
       required:
-        - id
-        - model_name
-        - timestamp
+        - job_id
+        - status
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+          enum: [queued]
+    InferenceResultPayload:
+      type: object
+      required:
+        - model_id
+        - engine_id
         - detections
         - image_refs
       properties:
-        id:
+        model_id:
           type: string
-        model_name:
+        engine_id:
           type: string
-        timestamp:
-          type: string
-          format: date-time
         detections:
           type: array
           items:
@@ -390,19 +407,57 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/MediaRef'
+        duration_ms:
+          type: integer
+    JobStatusPayload:
+      type: object
+      required:
+        - job_id
+        - status
+        - model_id
+        - engine_id
+        - created_at
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
+        model_id:
+          type: string
+        engine_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        result:
+          $ref: '#/components/schemas/InferenceResultPayload'
+        error:
+          $ref: '#/components/schemas/ErrorBody'
     HistoryItem:
       type: object
       required:
-        - id
-        - model_name
+        - job_id
+        - model_id
+        - engine_id
+        - status
         - timestamp
-        - defect_count
-        - max_confidence
       properties:
-        id:
+        job_id:
           type: string
-        model_name:
+        model_id:
           type: string
+        engine_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed]
         timestamp:
           type: string
           format: date-time
@@ -465,7 +520,7 @@ components:
                 $ref: '#/components/schemas/ModelMetadata'
         meta:
           $ref: '#/components/schemas/Meta'
-    SuccessEnvelopeInference:
+    SuccessEnvelopeJobAccepted:
       type: object
       required:
         - success
@@ -476,7 +531,21 @@ components:
           type: boolean
           enum: [true]
         data:
-          $ref: '#/components/schemas/InferencePayload'
+          $ref: '#/components/schemas/JobAcceptedPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    SuccessEnvelopeJobStatus:
+      type: object
+      required:
+        - success
+        - data
+        - meta
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/JobStatusPayload'
         meta:
           $ref: '#/components/schemas/Meta'
     SuccessEnvelopeHistory:
