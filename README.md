@@ -45,6 +45,10 @@ npm run dev
 - `POST /auth/refresh`
 - `POST /auth/logout`
 
+## Launch Guide
+
+For a beginner-friendly startup walkthrough, read [docs/operations/launch-guide.md](/D:/road_defect_detection/frondend-backend-system/docs/operations/launch-guide.md).
+
 ## Validation Commands
 
 Backend tests:
