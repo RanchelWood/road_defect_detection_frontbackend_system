@@ -241,7 +241,9 @@ components:
           type: boolean
           enum: [false]
         error:
-          $ref: '#/components/schemas/ErrorBody'
+          oneOf:
+            - $ref: '#/components/schemas/ErrorBody'
+            - type: "null"
         meta:
           $ref: '#/components/schemas/Meta'
     RegisterRequest:
@@ -343,7 +345,9 @@ components:
         label:
           type: string
         confidence:
-          type: number
+          type:
+            - number
+            - "null"
           minimum: 0
           maximum: 1
         bbox:
@@ -381,12 +385,18 @@ components:
       required:
         - job_id
         - status
+        - model_id
+        - engine_id
       properties:
         job_id:
           type: string
         status:
           type: string
           enum: [queued]
+        model_id:
+          type: string
+        engine_id:
+          type: string
     InferenceResultPayload:
       type: object
       required:
@@ -431,15 +441,23 @@ components:
           type: string
           format: date-time
         started_at:
-          type: string
+          type:
+            - string
+            - "null"
           format: date-time
         finished_at:
-          type: string
+          type:
+            - string
+            - "null"
           format: date-time
         result:
-          $ref: '#/components/schemas/InferenceResultPayload'
+          oneOf:
+            - $ref: '#/components/schemas/InferenceResultPayload'
+            - type: "null"
         error:
-          $ref: '#/components/schemas/ErrorBody'
+          oneOf:
+            - $ref: '#/components/schemas/ErrorBody'
+            - type: "null"
     HistoryItem:
       type: object
       required:

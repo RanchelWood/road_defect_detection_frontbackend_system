@@ -1,6 +1,6 @@
 ﻿from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -15,6 +15,9 @@ class InferenceJob(Base):
     model_id: Mapped[str] = mapped_column(String(128), index=True)
     status: Mapped[str] = mapped_column(String(32), default="queued", index=True)
     input_path: Mapped[str] = mapped_column(String(1024))
+    output_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    detections_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     original_filename: Mapped[str] = mapped_column(String(255))
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -21,6 +21,12 @@ class Settings(BaseSettings):
 
     frontend_origin: str = "http://localhost:5173"
 
+    inference_autorun_enabled: bool = True
+    rddc2020_python_path: str = r"D:\anaconda3\envs\crddc2022\python.exe"
+    rddc2020_yolov5_root: str = r"D:\road_defect_detection\rddc2020\yolov5"
+    rddc2020_device: str = "cpu"
+    rddc2020_timeout_seconds: int = 180
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

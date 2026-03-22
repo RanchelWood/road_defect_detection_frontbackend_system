@@ -9,6 +9,7 @@ from app.api.routes import auth, health, inference_jobs, models
 from app.core.config import get_settings
 from app.core.database import init_db
 from app.core.response import error_response
+from app.services.inference_jobs import InferenceJobService
 
 
 def create_app() -> FastAPI:
@@ -78,6 +79,7 @@ def create_app() -> FastAPI:
     def on_startup() -> None:
         Path(settings.media_root).mkdir(parents=True, exist_ok=True)
         init_db()
+        InferenceJobService().recover_pending_jobs_on_startup()
 
     return app
 

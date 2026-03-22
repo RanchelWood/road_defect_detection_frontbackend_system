@@ -1,13 +1,18 @@
-﻿from pathlib import Path
+﻿import json
+from datetime import UTC, datetime
+from pathlib import Path
 from uuid import uuid4
 
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.database import SessionLocal
 from app.models.inference_job import InferenceJob
 from app.models.user import User
+from app.services.adapters.base import AdapterExecutionError
 from app.services.dispatcher import InferenceDispatcher
+from app.services.engine_registry import InferenceEngineRegistry, get_engine_registry
 from app.services.model_registry import ModelRegistryService
 
 
@@ -15,9 +20,12 @@ class InferenceJobService:
     def __init__(
         self,
         model_registry: ModelRegistryService | None = None,
+        engine_registry: InferenceEngineRegistry | None = None,
         dispatcher: InferenceDispatcher | None = None,
     ) -> None:
-        self._model_registry = model_registry or ModelRegistryService()
+        self._settings = get_settings()
+        self._engine_registry = engine_registry or get_engine_registry()
+        self._model_registry = model_registry or ModelRegistryService(engine_registry=self._engine_registry)
         self._dispatcher = dispatcher or InferenceDispatcher()
 
     def create_queued_job(
@@ -42,8 +50,110 @@ class InferenceJobService:
         db.add(job)
         db.commit()
         db.refresh(job)
-        self._dispatcher.dispatch(job)
         return job
+
+    def dispatch_job(self, background_tasks: BackgroundTasks, job_id: str) -> None:
+        self._dispatcher.dispatch(background_tasks=background_tasks, job_id=job_id, execute_fn=self.execute_job)
+
+    def recover_pending_jobs_on_startup(self) -> None:
+        db = SessionLocal()
+        try:
+            pending_jobs = (
+                db.query(InferenceJob)
+                .filter(InferenceJob.status.in_(["queued", "running"]))
+                .order_by(InferenceJob.created_at.asc())
+                .all()
+            )
+
+            if not pending_jobs:
+                return
+
+            pending_ids: list[str] = []
+            for job in pending_jobs:
+                if job.status == "running":
+                    job.status = "queued"
+                    job.error_code = "ENGINE_RECOVERED_RETRY"
+                    job.error_message = "Recovered after server restart and requeued for execution."
+                    job.started_at = None
+                    job.finished_at = None
+                    db.add(job)
+                pending_ids.append(job.id)
+
+            db.commit()
+
+            if not self._settings.inference_autorun_enabled:
+                return
+
+            for job_id in pending_ids:
+                self.execute_job(job_id)
+        finally:
+            db.close()
+
+    def execute_job(self, job_id: str) -> None:
+        db = SessionLocal()
+        try:
+            job = db.query(InferenceJob).filter(InferenceJob.id == job_id).first()
+            if job is None:
+                return
+            if job.status != "queued":
+                return
+
+            job.status = "running"
+            job.started_at = datetime.now(UTC)
+            job.error_code = None
+            job.error_message = None
+            db.add(job)
+            db.commit()
+
+            try:
+                model = self._model_registry.validate_model_id(job.model_id)
+            except ValueError as exc:
+                raise AdapterExecutionError("INVALID_MODEL", str(exc)) from exc
+
+            adapter = self._engine_registry.get_adapter(job.engine_id)
+            if adapter is None:
+                raise AdapterExecutionError(
+                    "ENGINE_NOT_AVAILABLE",
+                    f"Engine '{job.engine_id}' is not registered.",
+                )
+
+            workspace = Path(job.input_path).parent / "runtime"
+            result = adapter.run(
+                input_image_path=job.input_path,
+                job_workspace=str(workspace),
+                model=model,
+            )
+
+            job.status = "succeeded"
+            job.output_path = result.annotated_image_path
+            job.detections_json = json.dumps(result.detections)
+            job.duration_ms = result.duration_ms
+            job.finished_at = datetime.now(UTC)
+            db.add(job)
+            db.commit()
+        except AdapterExecutionError as exc:
+            self._mark_failed(db=db, job_id=job_id, error_code=exc.code, error_message=exc.message)
+        except Exception as exc:  # pragma: no cover - defensive fallback for unexpected runtime issues.
+            self._mark_failed(
+                db=db,
+                job_id=job_id,
+                error_code="ENGINE_EXECUTION_FAILED",
+                error_message=str(exc),
+            )
+        finally:
+            db.close()
+
+    def _mark_failed(self, db: Session, job_id: str, error_code: str, error_message: str) -> None:
+        job = db.query(InferenceJob).filter(InferenceJob.id == job_id).first()
+        if job is None:
+            return
+
+        job.status = "failed"
+        job.error_code = error_code
+        job.error_message = error_message[:2000]
+        job.finished_at = datetime.now(UTC)
+        db.add(job)
+        db.commit()
 
     def get_owned_job(self, db: Session, user: User, job_id: str) -> InferenceJob:
         job = db.query(InferenceJob).filter(InferenceJob.id == job_id, InferenceJob.user_id == user.id).first()
@@ -72,11 +182,10 @@ class InferenceJobService:
             ) from exc
 
     def _store_upload(self, original_filename: str, file_bytes: bytes) -> Path:
-        settings = get_settings()
         suffix = Path(original_filename).suffix.lower()
         allowed_extensions = {
             extension.strip().lower()
-            for extension in settings.allowed_image_extensions.split(",")
+            for extension in self._settings.allowed_image_extensions.split(",")
             if extension.strip()
         }
 
@@ -90,18 +199,18 @@ class InferenceJobService:
                 },
             )
 
-        max_upload_bytes = settings.max_upload_mb * 1024 * 1024
+        max_upload_bytes = self._settings.max_upload_mb * 1024 * 1024
         if len(file_bytes) > max_upload_bytes:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
                     "code": "FILE_TOO_LARGE",
-                    "message": f"Upload exceeds the {settings.max_upload_mb}MB limit.",
+                    "message": f"Upload exceeds the {self._settings.max_upload_mb}MB limit.",
                     "details": {"field": "image"},
                 },
             )
 
-        job_dir = Path(settings.media_root) / "inference_jobs" / str(uuid4())
+        job_dir = Path(self._settings.media_root) / "inference_jobs" / str(uuid4())
         job_dir.mkdir(parents=True, exist_ok=True)
         target_path = job_dir / f"input{suffix}"
         target_path.write_bytes(file_bytes)
