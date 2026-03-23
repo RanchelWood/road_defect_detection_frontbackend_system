@@ -1,30 +1,41 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { createInferenceJob, getInferenceJob, listModels } from "../api/inference";
+import { createInferenceJob, getInferenceJob, getInferenceJobImage, listModels } from "../api/inference";
 import { ApiClientError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { AppShell } from "../components/AppShell";
 import { StatusBadge } from "../components/StatusBadge";
-import type { InferenceJobDetail, InferenceJobSubmission, ModelSummary } from "../types";
+import type { InferenceJobDetail, InferenceJobStatus, InferenceJobSubmission, ModelSummary } from "../types";
 
 const POLL_INTERVAL_MS = 2000;
 const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
 });
+const SERVER_TIMESTAMP_WITH_TIMEZONE_REGEX = /(Z|[+-]\d{2}:\d{2})$/i;
+
+function parseServerTimestamp(value: string | null): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalizedValue = SERVER_TIMESTAMP_WITH_TIMEZONE_REGEX.test(value) ? value : value + "Z";
+  const parsed = Date.parse(normalizedValue);
+  return Number.isNaN(parsed) ? null : parsed;
+}
 
 function formatTimestamp(value: string | null) {
   if (!value) {
     return "Not available";
   }
 
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
+  const parsedTimestamp = parseServerTimestamp(value);
+  if (parsedTimestamp === null) {
     return value;
   }
 
-  return dateTimeFormatter.format(parsed);
+  return dateTimeFormatter.format(new Date(parsedTimestamp));
 }
 
 function formatDuration(durationMs: number | undefined) {
@@ -47,8 +58,16 @@ function formatConfidence(confidence: number | null) {
   return `${(confidence * 100).toFixed(1)}%`;
 }
 
-function isWebRenderablePath(path: string) {
-  return path.startsWith("/") || path.startsWith("blob:") || path.startsWith("data:") || /^https?:\/\//i.test(path);
+function formatElapsed(elapsedMs: number | null) {
+  if (elapsedMs === null) {
+    return "00:00";
+  }
+
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function getJobStatus(jobDetail: InferenceJobDetail | null, submission: InferenceJobSubmission | null) {
@@ -69,6 +88,16 @@ export function InferencePage() {
   const [trackedSubmission, setTrackedSubmission] = useState<InferenceJobSubmission | null>(null);
   const [jobDetail, setJobDetail] = useState<InferenceJobDetail | null>(null);
   const [jobError, setJobError] = useState<string | null>(null);
+  const [elapsedMs, setElapsedMs] = useState<number | null>(null);
+  const [annotatedImageUrl, setAnnotatedImageUrl] = useState<string | null>(null);
+  const [annotatedImageLoading, setAnnotatedImageLoading] = useState(false);
+  const [annotatedImageError, setAnnotatedImageError] = useState<string | null>(null);
+
+  const previousStatusRef = useRef<InferenceJobStatus | null>(null);
+  const finalSyncJobIdRef = useRef<string | null>(null);
+  const pollingInFlightRef = useRef(false);
+  const activeJobIdRef = useRef<string | null>(null);
+  const annotatedImageUrlRef = useRef<string | null>(null);
 
   const jobIdFromRoute = searchParams.get("jobId");
   const previewUrl = useMemo(() => {
@@ -79,6 +108,16 @@ export function InferencePage() {
     return URL.createObjectURL(selectedFile);
   }, [selectedFile]);
 
+  const updateAnnotatedImageUrl = useCallback((nextUrl: string | null) => {
+    if (annotatedImageUrlRef.current) {
+      URL.revokeObjectURL(annotatedImageUrlRef.current);
+      annotatedImageUrlRef.current = null;
+    }
+
+    annotatedImageUrlRef.current = nextUrl;
+    setAnnotatedImageUrl(nextUrl);
+  }, []);
+
   useEffect(() => {
     return () => {
       if (previewUrl) {
@@ -86,6 +125,15 @@ export function InferencePage() {
       }
     };
   }, [previewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (annotatedImageUrlRef.current) {
+        URL.revokeObjectURL(annotatedImageUrlRef.current);
+        annotatedImageUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const loadModels = useCallback(async () => {
     if (!authState) {
@@ -118,17 +166,23 @@ export function InferencePage() {
 
       try {
         const response = await getInferenceJob(authState.accessToken, jobId);
+        if (activeJobIdRef.current !== jobId) {
+          return;
+        }
+
         setJobDetail(response);
-        setTrackedSubmission((current) =>
-          current ?? {
-            job_id: response.job_id,
-            status: response.status,
-            model_id: response.model_id,
-            engine_id: response.engine_id,
-          },
-        );
+        setTrackedSubmission({
+          job_id: response.job_id,
+          status: response.status,
+          model_id: response.model_id,
+          engine_id: response.engine_id,
+        });
         setJobError(null);
       } catch (err) {
+        if (activeJobIdRef.current !== jobId) {
+          return;
+        }
+
         if (err instanceof ApiClientError) {
           setJobError(err.message);
         } else {
@@ -145,12 +199,19 @@ export function InferencePage() {
 
   useEffect(() => {
     if (!jobIdFromRoute) {
+      activeJobIdRef.current = null;
+      pollingInFlightRef.current = false;
       setJobDetail(null);
       setTrackedSubmission(null);
       setJobError(null);
+      previousStatusRef.current = null;
+      finalSyncJobIdRef.current = null;
       return;
     }
 
+    activeJobIdRef.current = jobIdFromRoute;
+    previousStatusRef.current = null;
+    finalSyncJobIdRef.current = null;
     void loadJob(jobIdFromRoute);
   }, [jobIdFromRoute, loadJob]);
 
@@ -158,15 +219,133 @@ export function InferencePage() {
 
   useEffect(() => {
     if (!jobIdFromRoute || (currentStatus !== "queued" && currentStatus !== "running")) {
+      pollingInFlightRef.current = false;
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      void loadJob(jobIdFromRoute);
+    let cancelled = false;
+    const poll = async () => {
+      if (cancelled || pollingInFlightRef.current) {
+        return;
+      }
+
+      pollingInFlightRef.current = true;
+      try {
+        await loadJob(jobIdFromRoute);
+      } finally {
+        pollingInFlightRef.current = false;
+      }
+    };
+
+    void poll();
+    const intervalId = window.setInterval(() => {
+      void poll();
     }, POLL_INTERVAL_MS);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      cancelled = true;
+      pollingInFlightRef.current = false;
+      window.clearInterval(intervalId);
+    };
   }, [currentStatus, jobIdFromRoute, loadJob]);
+
+  useEffect(() => {
+    const previousStatus = previousStatusRef.current;
+    previousStatusRef.current = currentStatus;
+
+    if (!jobIdFromRoute || !currentStatus) {
+      return;
+    }
+
+    const transitionedToTerminal =
+      (previousStatus === "queued" || previousStatus === "running") &&
+      (currentStatus === "succeeded" || currentStatus === "failed");
+
+    if (!transitionedToTerminal || finalSyncJobIdRef.current === jobIdFromRoute) {
+      return;
+    }
+
+    finalSyncJobIdRef.current = jobIdFromRoute;
+    void loadJob(jobIdFromRoute);
+  }, [currentStatus, jobIdFromRoute, loadJob]);
+
+  const elapsedAnchorMs = useMemo(() => {
+    if (!jobDetail) {
+      return null;
+    }
+
+    const anchor = jobDetail.started_at ?? jobDetail.created_at;
+    if (!anchor) {
+      return null;
+    }
+
+    return parseServerTimestamp(anchor);
+  }, [jobDetail]);
+
+  useEffect(() => {
+    if (!elapsedAnchorMs || (currentStatus !== "queued" && currentStatus !== "running")) {
+      setElapsedMs(null);
+      return;
+    }
+
+    const updateElapsed = () => {
+      setElapsedMs(Math.max(0, Date.now() - elapsedAnchorMs));
+    };
+
+    updateElapsed();
+    const intervalId = window.setInterval(updateElapsed, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [currentStatus, elapsedAnchorMs]);
+
+  const annotatedImagePath = jobDetail?.result?.image_refs.find((item) => item.kind === "annotated")?.path ?? null;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!authState || !jobDetail?.job_id || currentStatus !== "succeeded") {
+      setAnnotatedImageLoading(false);
+      setAnnotatedImageError(null);
+      updateAnnotatedImageUrl(null);
+      return;
+    }
+
+    setAnnotatedImageLoading(true);
+    setAnnotatedImageError(null);
+
+    const fetchImage = async () => {
+      try {
+        const imageBlob = await getInferenceJobImage(authState.accessToken, jobDetail.job_id, "annotated");
+        if (cancelled) {
+          return;
+        }
+
+        const nextUrl = URL.createObjectURL(imageBlob);
+        updateAnnotatedImageUrl(nextUrl);
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+
+        updateAnnotatedImageUrl(null);
+        if (err instanceof ApiClientError) {
+          setAnnotatedImageError(err.message);
+        } else {
+          setAnnotatedImageError("Unable to load annotated image.");
+        }
+      } finally {
+        if (!cancelled) {
+          setAnnotatedImageLoading(false);
+        }
+      }
+    };
+
+    void fetchImage();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authState, currentStatus, jobDetail?.job_id, updateAnnotatedImageUrl]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -199,20 +378,23 @@ export function InferencePage() {
   }
 
   function handleResetWorkflow() {
+    activeJobIdRef.current = null;
+    pollingInFlightRef.current = false;
     setSelectedFile(null);
     setSubmissionError(null);
     setJobError(null);
     setTrackedSubmission(null);
     setJobDetail(null);
+    previousStatusRef.current = null;
+    finalSyncJobIdRef.current = null;
     setSearchParams({});
   }
 
   const resolvedJobId = jobDetail?.job_id ?? trackedSubmission?.job_id ?? null;
   const resolvedModelId = (jobDetail?.model_id ?? trackedSubmission?.model_id ?? selectedModelId) || "Not selected";
   const resolvedEngineId = jobDetail?.engine_id ?? trackedSubmission?.engine_id ?? "Not available";
-  const annotatedImage = jobDetail?.result?.image_refs.find((item) => item.kind === "annotated") ?? null;
-  const renderableAnnotatedImage = annotatedImage && isWebRenderablePath(annotatedImage.path) ? annotatedImage.path : null;
   const selectedModel = models.find((model) => model.model_id === selectedModelId) ?? null;
+  const elapsedAnchorLabel = jobDetail?.started_at ? "started_at" : jobDetail?.created_at ? "created_at" : null;
 
   return (
     <AppShell
@@ -375,8 +557,15 @@ export function InferencePage() {
 
                 {currentStatus === "queued" || currentStatus === "running" ? (
                   <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-                    Job is currently <span className="font-semibold">{currentStatus}</span>. The page will keep polling
-                    until it reaches a terminal state.
+                    <p>
+                      Job is currently <span className="font-semibold">{currentStatus}</span>. The page will keep polling
+                      until it reaches a terminal state.
+                    </p>
+                    <p className="mt-2 text-xs font-medium uppercase tracking-wide text-sky-700">Elapsed (live)</p>
+                    <p className="mt-1 text-lg font-semibold text-sky-900">{formatElapsed(elapsedMs)}</p>
+                    <p className="mt-1 text-xs text-sky-700">
+                      Source timestamp: {elapsedAnchorLabel ?? "waiting for server timestamps"}
+                    </p>
                   </div>
                 ) : null}
 
@@ -430,20 +619,39 @@ export function InferencePage() {
 
                 <div className="mt-6 rounded-xl border border-slate-200 p-4">
                   <h3 className="text-sm font-semibold text-slate-900">Annotated image</h3>
-                  {renderableAnnotatedImage ? (
+                  {annotatedImageUrl ? (
                     <img
                       alt="Annotated inference result"
                       className="mt-4 max-h-[28rem] w-full rounded-xl border border-slate-200 object-contain bg-slate-50"
-                      src={renderableAnnotatedImage}
+                      src={annotatedImageUrl}
                     />
-                  ) : annotatedImage ? (
+                  ) : null}
+
+                  {!annotatedImageUrl && annotatedImageLoading ? (
+                    <p className="mt-4 text-sm text-slate-600">Loading annotated image...</p>
+                  ) : null}
+
+                  {!annotatedImageUrl && !annotatedImageLoading && annotatedImageError ? (
                     <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                      Annotated image path is not web-renderable in the current backend setup:{" "}
-                      <span className="break-all font-medium">{annotatedImage.path}</span>
+                      <p>Unable to load annotated image from the authenticated image endpoint: {annotatedImageError}</p>
+                      {annotatedImagePath ? (
+                        <p className="mt-1 break-all">
+                          Backend path: <span className="font-medium">{annotatedImagePath}</span>
+                        </p>
+                      ) : null}
                     </div>
-                  ) : (
+                  ) : null}
+
+                  {!annotatedImageUrl && !annotatedImageLoading && !annotatedImageError && annotatedImagePath ? (
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                      Annotated image is unavailable to render. Backend path:{" "}
+                      <span className="break-all font-medium">{annotatedImagePath}</span>
+                    </div>
+                  ) : null}
+
+                  {!annotatedImageUrl && !annotatedImageLoading && !annotatedImageError && !annotatedImagePath ? (
                     <p className="mt-4 text-sm text-slate-500">No annotated image reference was returned for this job.</p>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
@@ -485,3 +693,5 @@ export function InferencePage() {
     </AppShell>
   );
 }
+
+

@@ -1,13 +1,17 @@
 # Frontend (React + TypeScript)
 
-This frontend now includes the Milestone 1 runnable scaffold with:
+This frontend now includes Milestone 2 MVP flows:
 
-- `/login` page wired to backend `POST /auth/login`
-- `/register` page wired to backend `POST /auth/register`
-- Protected `/dashboard` page with:
-  - health check button for `GET /health`
-  - logout action for `POST /auth/logout`
-- Auth state persisted in local storage
+- `/login` and `/register` wired to backend auth APIs
+- Protected `/dashboard` with health check + logout
+- Protected `/inference` page with:
+  - model loading
+  - image upload + job submission
+  - async polling (`queued/running` -> terminal)
+  - result metadata + detections rendering
+  - authenticated annotated image fetching
+- Protected `/history` page with pagination/filtering and deep-link reopen of prior jobs
+- Auth state persisted in local storage with 401 session-clear redirect handling
 
 ## Local Run
 

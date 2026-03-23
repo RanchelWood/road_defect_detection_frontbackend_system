@@ -22,6 +22,8 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-22 13:40Z) Milestone 2D frontend completed: protected `/inference` + `/history` routes, async submit/polling UI, result/detection rendering, and paginated history navigation.
 - [x] (2026-03-22 14:05Z) Milestone 2D independently reviewed in main workflow; frontend build re-run and passing (`npm run build`).
 - [x] (2026-03-22 15:00Z) Workflow governance update completed: added Test Engineer thread role, bug lifecycle states, and standard bug-report/assignment/retest templates.
+- [x] (2026-03-22 16:10Z) Post-M2D bugfix cycle closed: `BUG-20260322-001` and `BUG-20260322-002` triaged to frontend, fixed via delegated FE patch, independently build-validated, and passed Test Engineer retest before closure.
+- [x] (2026-03-23 02:45Z) Post-closure regression stabilization completed: timer-anchor timezone skew and polling overlap starvation were fixed (BUG-20260322-001/002 reopened then re-closed), with backend UTC timestamp serialization and frontend non-overlapping polling.
 - [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [ ] Milestone 4: Phase 2 real-time streaming design/implementation after stable image-job flow.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
@@ -39,6 +41,9 @@ After this work, a beginner should be able to run a web system where a user can 
 
 - Observation: startup reconciliation currently replays pending jobs inline when autorun is enabled.
   Evidence: `backend/app/main.py` calls `InferenceJobService().recover_pending_jobs_on_startup()`, and `backend/app/services/inference_jobs.py` executes recovered jobs synchronously in a loop.
+
+- Observation: SQLite datetime roundtrip can return timezone-naive values at API boundary unless normalized before serialization.
+  Evidence: inference timer showed 480:00 in UTC+8 locale when frontend interpreted naive timestamps as local-time anchors.
 
 ## Decision Log
 
@@ -86,6 +91,18 @@ After this work, a beginner should be able to run a web system where a user can 
   Rationale: Keeps MVP debugging structured and beginner-friendly while preventing unverified closures.
   Date/Author: 2026-03-22 / Codex
 
+- Decision: Frontend job polling state must ignore stale out-of-order responses, and live elapsed timer display must remain strict `mm:ss`.
+  Rationale: Prevents terminal-state UI desync after async polling and enforces the approved UX display contract.
+  Date/Author: 2026-03-22 / Codex
+
+- Decision: Job timestamp payloads must be serialized with explicit UTC timezone (Z), and frontend timestamp parsing must treat missing timezone as UTC for backward compatibility.
+  Rationale: Prevents locale-dependent elapsed-time drift and keeps timer behavior stable across refresh and timezones.
+  Date/Author: 2026-03-23 / Codex
+
+- Decision: Polling must be non-overlapping to avoid response starvation on slow requests.
+  Rationale: Ensures terminal-state updates are eventually applied without requiring manual browser refresh.
+  Date/Author: 2026-03-23 / Codex
+
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -102,9 +119,15 @@ Milestone 2D frontend outcome (2026-03-22): UI now supports protected inference 
 
 Workflow governance outcome (2026-03-22): Team workflow now includes a dedicated Test Engineer role with reproducible bug reporting templates, Team Leader triage/assignment templates, and mandatory retest verification before issue closure.
 
+Bugfix closure outcome (2026-03-22): reopened UI defects `BUG-20260322-001/002` were resolved and closed after verification, with inference status updates now protected against stale polling responses and elapsed runtime display locked to `mm:ss`.
+
+Bugfix closure outcome (2026-03-23): integration defect BUG-20260322-003 (authenticated inference image rendering path) was verified and closed after backend endpoint + frontend blob-render flow confirmation.
+
+Bugfix stabilization outcome (2026-03-23): reopened defects BUG-20260322-001/002 were re-closed after direct patching of UTC timestamp serialization/parsing and non-overlapping polling, with user confirmation that timer and terminal auto-update behaviors are now correct.
+
 ## Context and Orientation
 
-Current state includes a working Milestone 1 auth + health scaffold in `backend/` and `frontend/`. The inference runtime that will be integrated is in sibling directory `D:\road_defect_detection\rddc2020`, with its primary script at `D:\road_defect_detection\rddc2020\yolov5\detect.py`.
+Current state includes a working Milestone 2 MVP in `backend/` and `frontend/` (auth, models, async inference jobs, authenticated job-image retrieval, and history). The first inference runtime integrated is the sibling directory `D:\road_defect_detection\rddc2020`, with its primary script at `D:\road_defect_detection\rddc2020\yolov5\detect.py`.
 
 In this repository, an inference engine means an implementation that can execute inference jobs and return normalized outputs. An inference adapter means the backend interface layer that maps generic job requests into engine-specific execution details.
 
@@ -127,7 +150,7 @@ All commands below are run from repository root `D:\road_defect_detection\fronde
 Backend and frontend baseline (already completed):
 
     cd backend
-    python -m pytest tests
+    .\.venv\Scripts\python.exe -m pytest tests
 
     cd ..\frontend
     npm run build
@@ -219,3 +242,7 @@ Plan change note (2026-03-22 / Codex): Independently reviewed Milestone 2C imple
 Plan change note (2026-03-22 / Codex): Delegated Milestone 2D frontend implementation to a dedicated GPT-5.4 UI worker (`@Anscombe`), then fixed final TypeScript precedence issue and completed build-clean handoff.
 Plan change note (2026-03-22 / Codex): Independently reviewed Milestone 2D frontend changes in main workflow and re-ran `frontend` build successfully.
 Plan change note (2026-03-22 / Codex): Added Test Engineer workflow governance docs (role responsibilities, bug lifecycle, and standard reporting/assignment/retest templates).
+Plan change note (2026-03-22 / Codex): Closed `BUG-20260322-001` and `BUG-20260322-002` via Team Leader triage -> FE delegation (`@Anscombe`) -> independent build validation -> Test Engineer retest pass (`@Confucius`).
+Plan change note (2026-03-23 / Codex): Applied direct regression stabilization for `BUG-20260322-001/002` (UTC timestamp normalization + non-overlapping polling), revalidated backend tests/frontend build, and confirmed user-side closure.
+
+

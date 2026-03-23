@@ -68,3 +68,8 @@ Default is CPU-first. If GPU runtime is introduced later, keep API contract unch
 - If `INFERENCE_AUTORUN_ENABLED=true`, reconciled pending jobs are re-executed in startup order.
 - Durability limit for this milestone: execution remains in-process/background-task based (not an external worker queue), so restart mid-execution can interrupt engine processes and requires requeue/retry handling.
 - Startup replay currently runs inline during backend startup; large pending backlogs can increase boot time.
+
+## Client Image Access (BUG-20260322-003)
+
+- API consumers must fetch job images via authenticated endpoint `GET /inference/jobs/{job_id}/image/{kind}`.
+- Filesystem paths in job payloads are backend-internal references and are not reliable browser URLs.

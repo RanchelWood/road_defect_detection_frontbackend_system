@@ -1,7 +1,10 @@
 import json
 from collections.abc import Mapping
+from datetime import UTC, datetime
+from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
@@ -40,6 +43,18 @@ def _normalize_detection(raw_detection: Mapping[str, object]) -> dict[str, objec
             "y2": _to_number(bbox.get("y2")),
         },
     }
+
+
+def _serialize_utc_timestamp(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+
+    if value.tzinfo is None or value.tzinfo.utcoffset(value) is None:
+        normalized = value.replace(tzinfo=UTC)
+    else:
+        normalized = value.astimezone(UTC)
+
+    return normalized.isoformat().replace("+00:00", "Z")
 
 
 @router.post("/inference/jobs")
@@ -91,11 +106,7 @@ def get_inference_job(
         except json.JSONDecodeError:
             parsed = []
         if isinstance(parsed, list):
-            detections = [
-                _normalize_detection(item)
-                for item in parsed
-                if isinstance(item, Mapping)
-            ]
+            detections = [_normalize_detection(item) for item in parsed if isinstance(item, Mapping)]
 
     error_payload = None
     if job.error_code or job.error_message:
@@ -138,10 +149,56 @@ def get_inference_job(
             "status": job.status,
             "model_id": job.model_id,
             "engine_id": job.engine_id,
-            "created_at": job.created_at.isoformat(),
-            "started_at": job.started_at.isoformat() if job.started_at else None,
-            "finished_at": job.finished_at.isoformat() if job.finished_at else None,
+            "created_at": _serialize_utc_timestamp(job.created_at),
+            "started_at": _serialize_utc_timestamp(job.started_at),
+            "finished_at": _serialize_utc_timestamp(job.finished_at),
             "result": result_payload,
             "error": error_payload,
         },
     )
+
+
+@router.get("/inference/jobs/{job_id}/image/{kind}")
+def get_inference_job_image(
+    job_id: str,
+    kind: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if kind not in {"original", "annotated"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "INVALID_IMAGE_KIND",
+                "message": "Unsupported image kind. Use 'original' or 'annotated'.",
+                "details": {"field": "kind", "value": kind},
+            },
+        )
+
+    job_service = InferenceJobService()
+    job = job_service.get_owned_job(db=db, user=current_user, job_id=job_id)
+
+    image_path_raw = job.input_path if kind == "original" else job.output_path
+    if not image_path_raw:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "IMAGE_NOT_FOUND",
+                "message": f"Requested {kind} image is not available for this job.",
+                "details": {"job_id": job_id, "kind": kind},
+            },
+        )
+
+    image_path = Path(image_path_raw)
+    if not image_path.exists() or not image_path.is_file():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "IMAGE_NOT_FOUND",
+                "message": f"Requested {kind} image file does not exist.",
+                "details": {"job_id": job_id, "kind": kind},
+            },
+        )
+
+    return FileResponse(path=image_path, filename=image_path.name)
+

@@ -1,4 +1,4 @@
-﻿# Auth and Session Rules
+# Auth and Session Rules
 
 ## Authentication Method
 
@@ -11,7 +11,7 @@
 - Access token lifetime: 60 minutes.
 - Refresh token lifetime: 7 days.
 - `POST /auth/refresh` issues a new access token.
-- `POST /auth/logout` invalidates refresh token session state (implementation detail to be chosen in code stage).
+- `POST /auth/logout` invalidates refresh token session state in persistence storage.
 
 ## Role Stub Semantics
 

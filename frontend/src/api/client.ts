@@ -20,6 +20,29 @@ async function parseJson<T>(response: Response): Promise<ApiEnvelope<T>> {
   return payload;
 }
 
+async function parseErrorResponse(response: Response): Promise<{ code: string; message: string }> {
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      const payload = (await response.json()) as ApiEnvelope<unknown>;
+      if (payload.success === false) {
+        return {
+          code: payload.error.code,
+          message: payload.error.message,
+        };
+      }
+    } catch {
+      // Ignore JSON parsing failures and fall back to a generic error.
+    }
+  }
+
+  return {
+    code: "HTTP_ERROR",
+    message: "Request failed",
+  };
+}
+
 export function setUnauthorizedHandler(handler: (() => void) | null) {
   unauthorizedHandler = handler;
 }
@@ -93,4 +116,24 @@ export async function getJson<TResponse>(path: string, token?: string): Promise<
     },
     token,
   );
+}
+
+export async function getBlob(path: string, token: string): Promise<Blob> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (response.status === 401) {
+    unauthorizedHandler?.();
+  }
+
+  if (!response.ok) {
+    const parsedError = await parseErrorResponse(response);
+    throw new ApiClientError(parsedError.message, parsedError.code, response.status);
+  }
+
+  return response.blob();
 }

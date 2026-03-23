@@ -2,9 +2,10 @@
 
 This guide shows the simplest way to start the Road Damage Defect System on a Windows machine with PowerShell.
 
-The project currently has two runnable parts:
+The project currently has two app services plus one inference runtime dependency:
 - Backend: FastAPI on `http://localhost:8000`
 - Frontend: React on `http://localhost:5173`
+- External inference runtime: sibling `rddc2020` path used by backend adapter for image jobs
 
 ## First-Time Setup
 
@@ -29,6 +30,12 @@ Run these steps only once, or again if you delete your local environment folders
 
     cd ..\frontend
     npm install
+
+5. Confirm external runtime prerequisites for inference.
+
+    - `D:\road_defect_detection\rddc2020` exists.
+    - Required model weight files are present under `rddc2020\yolov5\weights\IMSC`.
+    - The runtime can execute inference command in its own environment.
 
 ## Every Time You Want to Run the Project
 
@@ -105,3 +112,4 @@ Then open:
 - If the backend says a port is already in use, close the old backend window and start it again.
 - If `npm run dev` fails, run `npm install` again in the `frontend` folder.
 - If login or job submission fails, confirm the backend is running on port `8000`.
+- If jobs stay queued/running unexpectedly, confirm `rddc2020` runtime path and weights are available to backend.

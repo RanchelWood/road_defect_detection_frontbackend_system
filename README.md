@@ -1,13 +1,12 @@
 # Road Damage Defect System
 
-This repository now has a runnable Milestone 1 baseline:
+This repository now includes a runnable Milestone 2 MVP:
 
-- FastAPI backend scaffold with health + authentication flow
-- React frontend scaffold with login/register/dashboard
-- SQLite-backed user and refresh-token session storage
+- FastAPI backend with auth, model registry, async inference jobs, job image endpoint, and history APIs
+- React frontend with login/register, protected pages, image inference submission/polling, result rendering, and history browsing
+- External first inference engine integration via `rddc2020` CLI adapter
+- SQLite persistence for users, refresh sessions, and inference jobs
 - Docker Compose template for single-VM style startup
-
-Image inference and history features are still planned for Milestone 2.
 
 ## Quick Start (Local)
 
@@ -37,13 +36,18 @@ npm run dev
 
 4. Open `http://localhost:5173/login`.
 
-## Milestone 1 Delivered Endpoints
+## Current MVP Endpoints
 
 - `GET /health`
 - `POST /auth/register`
 - `POST /auth/login`
 - `POST /auth/refresh`
 - `POST /auth/logout`
+- `GET /models`
+- `POST /inference/jobs`
+- `GET /inference/jobs/{job_id}`
+- `GET /inference/jobs/{job_id}/image/{kind}`
+- `GET /history`
 
 ## Launch Guide
 
@@ -55,7 +59,7 @@ Backend tests:
 
 ```powershell
 cd backend
-python -m pytest tests
+.\.venv\Scripts\python.exe -m pytest tests
 ```
 
 Frontend build check:
@@ -67,6 +71,6 @@ npm run build
 
 ## Execution Plan
 
-Implementation must continue from:
+Implementation continues from:
 
 - `plans/execplan-road-damage-system-mvp.md`
