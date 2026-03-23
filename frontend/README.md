@@ -1,6 +1,6 @@
 # Frontend (React + TypeScript)
 
-This frontend now includes Milestone 2 MVP flows:
+This frontend includes Milestone 2 MVP flows:
 
 - `/login` and `/register` wired to backend auth APIs
 - Protected `/dashboard` with health check + logout
@@ -23,11 +23,40 @@ npm install
 npm run dev
 ```
 
-Open:
-
-- `http://localhost:5173/login`
+Open `http://localhost:5173/login`.
 
 Set backend URL through `VITE_API_BASE_URL` in root `.env` (default `http://localhost:8000`).
+
+## Testing Workflow
+
+First-time Playwright setup (one-time browser install):
+
+```powershell
+cd frontend
+npm run test:e2e:install
+```
+
+Run frontend unit tests:
+
+```powershell
+cd frontend
+npm run test:unit
+```
+
+Run frontend smoke E2E tests:
+
+```powershell
+cd frontend
+npm run test:e2e:smoke
+```
+
+Optional:
+
+```powershell
+cd frontend
+npm run test:unit:coverage
+npm run test:e2e
+```
 
 ## Build Check
 
@@ -35,3 +64,4 @@ Set backend URL through `VITE_API_BASE_URL` in root `.env` (default `http://loca
 cd frontend
 npm run build
 ```
+

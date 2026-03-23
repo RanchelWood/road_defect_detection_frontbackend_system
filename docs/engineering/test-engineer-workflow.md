@@ -39,6 +39,22 @@ Guardrail:
 
 - Do not make speculative code changes unless explicitly assigned implementation work.
 
+## Automation Augmentation (Implemented)
+
+Status on 2026-03-23: implemented in frontend workflow.
+
+Active automation stack:
+
+- Vitest `v4.1.0` for frontend unit/component regression checks.
+- Playwright `v1.58.2` for browser-level reproduction and retest evidence.
+
+Test Engineer expected usage:
+
+- Run `npm run test:e2e:smoke` as fast verification for critical MVP flows.
+- Attach Playwright traces/videos/screenshots when available.
+- Reference related Vitest tests (`npm run test:unit`) for frontend logic regressions.
+- Use manual + automated cross-check for `blocker` and `high` severity defects.
+
 ## Bug Lifecycle
 
 ### Status Model
@@ -90,6 +106,9 @@ Steps to Reproduce:
 Expected Result:
 Actual Result:
 Evidence / Notes:
+- Manual evidence:
+- Playwright evidence (if available): trace/video/screenshot path
+- Related Vitest coverage (if available): test file/name
 Suspected Owner: Frontend Engineer | Backend Engineer | Team Leader review
 Suggested Next Action:
 Current Status: new
@@ -113,6 +132,7 @@ Acceptance Criteria:
 - Bug reproduction no longer occurs.
 - No regression in related MVP flow.
 - Build/tests/checks required by owner pass.
+- If automation exists for scope: relevant Vitest/Playwright checks pass.
 Deliverable:
 - PR/patch + short fix note + risk note.
 Next Status on Start: in progress
@@ -136,7 +156,9 @@ Pass Criteria:
 
 Retest Result:
 - Outcome: pass | fail
-- Evidence:
+- Manual Evidence:
+- Playwright Evidence (if available):
+- Related Vitest Evidence (if available):
 - Residual Issues:
 - Recommendation: close | re-triage
 Next Status: closed (if pass) | triaged (if fail)
@@ -153,3 +175,4 @@ Verified At:
 - Require bug ID in every engineer update.
 - Prefer small bug-fix batches and immediate retest handoff.
 - Keep reports concrete and reproducible; avoid vague statements.
+

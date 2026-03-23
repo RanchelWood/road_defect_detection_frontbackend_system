@@ -6,6 +6,7 @@ import { ApiClientError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { AppShell } from "../components/AppShell";
 import { StatusBadge } from "../components/StatusBadge";
+import { formatElapsed, parseServerTimestamp } from "../utils/time";
 import type { InferenceJobDetail, InferenceJobStatus, InferenceJobSubmission, ModelSummary } from "../types";
 
 const POLL_INTERVAL_MS = 2000;
@@ -13,18 +14,6 @@ const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
 });
-const SERVER_TIMESTAMP_WITH_TIMEZONE_REGEX = /(Z|[+-]\d{2}:\d{2})$/i;
-
-function parseServerTimestamp(value: string | null): number | null {
-  if (!value) {
-    return null;
-  }
-
-  const normalizedValue = SERVER_TIMESTAMP_WITH_TIMEZONE_REGEX.test(value) ? value : value + "Z";
-  const parsed = Date.parse(normalizedValue);
-  return Number.isNaN(parsed) ? null : parsed;
-}
-
 function formatTimestamp(value: string | null) {
   if (!value) {
     return "Not available";
@@ -58,17 +47,6 @@ function formatConfidence(confidence: number | null) {
   return `${(confidence * 100).toFixed(1)}%`;
 }
 
-function formatElapsed(elapsedMs: number | null) {
-  if (elapsedMs === null) {
-    return "00:00";
-  }
-
-  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-}
 
 function getJobStatus(jobDetail: InferenceJobDetail | null, submission: InferenceJobSubmission | null) {
   return jobDetail?.status ?? submission?.status ?? null;
@@ -693,5 +671,4 @@ export function InferencePage() {
     </AppShell>
   );
 }
-
 

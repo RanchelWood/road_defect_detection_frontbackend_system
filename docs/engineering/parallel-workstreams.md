@@ -1,6 +1,6 @@
 # Parallel Workstream Ownership Plan
 
-This document defines parallel ownership for Milestone 2 external integration.
+This document defines parallel ownership for Milestone 2 external integration and current QA hardening.
 
 ## Thread Structure (Workflow Governance)
 
@@ -92,3 +92,7 @@ Deliverables:
 - Reproducible bug reports with severity, area classification, and suspected owner.
 - Retest outcomes for every fixed issue before closure.
 - Escalation list for integration or unclear ownership defects.
+- Active frontend QA automation deliverables:
+  - Vitest `v4.1.0` unit/component regression pack
+  - Playwright `v1.58.2` browser smoke/retest pack with trace artifacts
+

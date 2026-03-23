@@ -24,6 +24,8 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-22 15:00Z) Workflow governance update completed: added Test Engineer thread role, bug lifecycle states, and standard bug-report/assignment/retest templates.
 - [x] (2026-03-22 16:10Z) Post-M2D bugfix cycle closed: `BUG-20260322-001` and `BUG-20260322-002` triaged to frontend, fixed via delegated FE patch, independently build-validated, and passed Test Engineer retest before closure.
 - [x] (2026-03-23 02:45Z) Post-closure regression stabilization completed: timer-anchor timezone skew and polling overlap starvation were fixed (BUG-20260322-001/002 reopened then re-closed), with backend UTC timestamp serialization and frontend non-overlapping polling.
+- [x] (2026-03-23 06:10Z) Milestone 3 QA workflow preparation completed: adopted planned frontend automation stack targets, updated engineering workflow docs, and briefed Test Engineer thread expectations.
+- [x] (2026-03-23 09:20Z) Milestone 3A implementation completed: frontend Vitest + Playwright automation was wired (configs/scripts/tests), environment compatibility was stabilized (jsdom pin), and quality gates were validated (`test:unit`, `test:e2e:smoke`, `npm run build`).
 - [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [ ] Milestone 4: Phase 2 real-time streaming design/implementation after stable image-job flow.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
@@ -103,6 +105,10 @@ After this work, a beginner should be able to run a web system where a user can 
   Rationale: Ensures terminal-state updates are eventually applied without requiring manual browser refresh.
   Date/Author: 2026-03-23 / Codex
 
+- Decision: Frontend QA automation standard will use Vitest v4.1.0 for unit/component coverage and Playwright v1.58.2 for browser E2E smoke/regression coverage.
+  Rationale: Combines fast local feedback with reproducible end-to-end evidence for triage, retest, and release confidence.
+  Date/Author: 2026-03-23 / Codex
+
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -124,6 +130,8 @@ Bugfix closure outcome (2026-03-22): reopened UI defects `BUG-20260322-001/002` 
 Bugfix closure outcome (2026-03-23): integration defect BUG-20260322-003 (authenticated inference image rendering path) was verified and closed after backend endpoint + frontend blob-render flow confirmation.
 
 Bugfix stabilization outcome (2026-03-23): reopened defects BUG-20260322-001/002 were re-closed after direct patching of UTC timestamp serialization/parsing and non-overlapping polling, with user confirmation that timer and terminal auto-update behaviors are now correct.
+
+QA workflow implementation outcome (2026-03-23): frontend automation is now active with Vitest (unit) and Playwright (smoke E2E), and was validated in this repo with passing `npm run test:unit`, `npm run test:e2e:smoke`, and `npm run build` checks.
 
 ## Context and Orientation
 
@@ -244,5 +252,6 @@ Plan change note (2026-03-22 / Codex): Independently reviewed Milestone 2D front
 Plan change note (2026-03-22 / Codex): Added Test Engineer workflow governance docs (role responsibilities, bug lifecycle, and standard reporting/assignment/retest templates).
 Plan change note (2026-03-22 / Codex): Closed `BUG-20260322-001` and `BUG-20260322-002` via Team Leader triage -> FE delegation (`@Anscombe`) -> independent build validation -> Test Engineer retest pass (`@Confucius`).
 Plan change note (2026-03-23 / Codex): Applied direct regression stabilization for `BUG-20260322-001/002` (UTC timestamp normalization + non-overlapping polling), revalidated backend tests/frontend build, and confirmed user-side closure.
-
+Plan change note (2026-03-23 / Codex): Updated QA governance docs for planned Vitest + Playwright adoption and briefed Test Engineer workflow expectations.
+Plan change note (2026-03-23 / Codex): Implemented frontend testing workflow end-to-end (Vitest/Playwright config + tests + scripts), validated runtime compatibility, and updated documentation + usage guidance.
 
