@@ -26,6 +26,7 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-23 02:45Z) Post-closure regression stabilization completed: timer-anchor timezone skew and polling overlap starvation were fixed (BUG-20260322-001/002 reopened then re-closed), with backend UTC timestamp serialization and frontend non-overlapping polling.
 - [x] (2026-03-23 06:10Z) Milestone 3 QA workflow preparation completed: adopted planned frontend automation stack targets, updated engineering workflow docs, and briefed Test Engineer thread expectations.
 - [x] (2026-03-23 09:20Z) Milestone 3A implementation completed: frontend Vitest + Playwright automation was wired (configs/scripts/tests), environment compatibility was stabilized (jsdom pin), and quality gates were validated (`test:unit`, `test:e2e:smoke`, `npm run build`).
+- [x] (2026-03-24 08:40Z) Milestone 3B history-management UX/API completed: added user-scoped delete-one and clear-all history operations, /history page-size selector (10/20/50), frontend/unit/backend test coverage, and passing validation gates.
 - [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [ ] Milestone 4: Phase 2 real-time streaming design/implementation after stable image-job flow.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
@@ -109,6 +110,10 @@ After this work, a beginner should be able to run a web system where a user can 
   Rationale: Combines fast local feedback with reproducible end-to-end evidence for triage, retest, and release confidence.
   Date/Author: 2026-03-23 / Codex
 
+- Decision: History mutation APIs are account-scoped with explicit endpoints (DELETE /history/{job_id}, DELETE /history) and frontend page-size control is constrained to 10/20/50 with page reset to 1 on size/filter changes.
+  Rationale: Meets user-requested data management features while preserving auth safety and predictable pagination UX.
+  Date/Author: 2026-03-24 / Codex
+
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -132,6 +137,8 @@ Bugfix closure outcome (2026-03-23): integration defect BUG-20260322-003 (authen
 Bugfix stabilization outcome (2026-03-23): reopened defects BUG-20260322-001/002 were re-closed after direct patching of UTC timestamp serialization/parsing and non-overlapping polling, with user confirmation that timer and terminal auto-update behaviors are now correct.
 
 QA workflow implementation outcome (2026-03-23): frontend automation is now active with Vitest (unit) and Playwright (smoke E2E), and was validated in this repo with passing `npm run test:unit`, `npm run test:e2e:smoke`, and `npm run build` checks.
+
+History management outcome (2026-03-24): users can now delete one history record or clear all their own history, and /history supports explicit page-size selection (10/20/50) with safe pagination reset and refresh behavior after mutations.
 
 ## Context and Orientation
 
@@ -254,4 +261,5 @@ Plan change note (2026-03-22 / Codex): Closed `BUG-20260322-001` and `BUG-202603
 Plan change note (2026-03-23 / Codex): Applied direct regression stabilization for `BUG-20260322-001/002` (UTC timestamp normalization + non-overlapping polling), revalidated backend tests/frontend build, and confirmed user-side closure.
 Plan change note (2026-03-23 / Codex): Updated QA governance docs for planned Vitest + Playwright adoption and briefed Test Engineer workflow expectations.
 Plan change note (2026-03-23 / Codex): Implemented frontend testing workflow end-to-end (Vitest/Playwright config + tests + scripts), validated runtime compatibility, and updated documentation + usage guidance.
+Plan change note (2026-03-24 / Codex): Implemented history feature batch (delete-one, clear-all, page-size selector), integrated backend/frontend tests, and updated API/UI contracts + ExecPlan tracking.
 

@@ -1,14 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { getHistory, listModels } from "../api/inference";
+import { clearHistory, deleteHistoryItem, getHistory, listModels } from "../api/inference";
 import { ApiClientError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { AppShell } from "../components/AppShell";
 import { StatusBadge } from "../components/StatusBadge";
 import type { HistoryItem, HistoryListResponse, ModelSummary } from "../types";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
+type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
+const DEFAULT_PAGE_SIZE: PageSizeOption = 10;
+
 const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
@@ -40,6 +43,11 @@ function parsePage(rawPage: string | null) {
   return Math.floor(parsed);
 }
 
+function parsePageSize(rawPageSize: string | null): PageSizeOption {
+  const parsed = Number(rawPageSize);
+  return PAGE_SIZE_OPTIONS.includes(parsed as PageSizeOption) ? (parsed as PageSizeOption) : DEFAULT_PAGE_SIZE;
+}
+
 export function HistoryPage() {
   const { authState } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -50,9 +58,39 @@ export function HistoryPage() {
   const [history, setHistory] = useState<HistoryListResponse | null>(null);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState<string | null>(null);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
+  const [clearingHistory, setClearingHistory] = useState(false);
 
   const currentPage = parsePage(searchParams.get("page"));
+  const currentPageSize = parsePageSize(searchParams.get("pageSize"));
   const selectedModelId = searchParams.get("modelId") ?? "";
+  const hasHistoryItems = (history?.total ?? 0) > 0;
+  const actionInProgress = clearingHistory || deletingJobId !== null;
+
+  function updateSearch(next: { page?: number; modelId?: string; pageSize?: PageSizeOption }) {
+    const nextParams = new URLSearchParams(searchParams);
+
+    if (next.page && next.page > 1) {
+      nextParams.set("page", String(next.page));
+    } else {
+      nextParams.delete("page");
+    }
+
+    if (next.modelId) {
+      nextParams.set("modelId", next.modelId);
+    } else {
+      nextParams.delete("modelId");
+    }
+
+    const nextPageSize = next.pageSize ?? currentPageSize;
+    if (nextPageSize === DEFAULT_PAGE_SIZE) {
+      nextParams.delete("pageSize");
+    } else {
+      nextParams.set("pageSize", String(nextPageSize));
+    }
+
+    setSearchParams(nextParams);
+  }
 
   const loadModels = useCallback(async () => {
     if (!authState) {
@@ -76,9 +114,9 @@ export function HistoryPage() {
     }
   }, [authState]);
 
-  const loadHistoryData = useCallback(async () => {
+  const loadHistoryData = useCallback(async (): Promise<HistoryListResponse | null> => {
     if (!authState) {
-      return;
+      return null;
     }
 
     setHistoryLoading(true);
@@ -87,20 +125,22 @@ export function HistoryPage() {
     try {
       const response = await getHistory(authState.accessToken, {
         page: currentPage,
-        pageSize: PAGE_SIZE,
+        pageSize: currentPageSize,
         modelId: selectedModelId || undefined,
       });
       setHistory(response);
+      return response;
     } catch (err) {
       if (err instanceof ApiClientError) {
         setHistoryError(err.message);
       } else {
         setHistoryError("Unable to load job history.");
       }
+      return null;
     } finally {
       setHistoryLoading(false);
     }
-  }, [authState, currentPage, selectedModelId]);
+  }, [authState, currentPage, currentPageSize, selectedModelId]);
 
   useEffect(() => {
     void loadModels();
@@ -118,26 +158,84 @@ export function HistoryPage() {
     return Math.max(1, Math.ceil(history.total / history.page_size));
   }, [history]);
 
-  function updateSearch(next: { page?: number; modelId?: string }) {
-    const nextParams = new URLSearchParams(searchParams);
-
-    if (next.page && next.page > 1) {
-      nextParams.set("page", String(next.page));
-    } else {
-      nextParams.delete("page");
+  const refreshAfterMutation = useCallback(async () => {
+    const response = await loadHistoryData();
+    if (!response) {
+      return;
     }
 
-    if (next.modelId) {
-      nextParams.set("modelId", next.modelId);
-    } else {
-      nextParams.delete("modelId");
+    if (response.items.length === 0 && response.total > 0 && currentPage > 1) {
+      const fallbackPage = Math.max(1, Math.ceil(response.total / currentPageSize));
+      if (fallbackPage !== currentPage) {
+        updateSearch({ page: fallbackPage, modelId: selectedModelId, pageSize: currentPageSize });
+      }
     }
-
-    setSearchParams(nextParams);
-  }
+  }, [currentPage, currentPageSize, loadHistoryData, selectedModelId]);
 
   function handleFilterChange(nextModelId: string) {
-    updateSearch({ page: 1, modelId: nextModelId });
+    updateSearch({ page: 1, modelId: nextModelId, pageSize: currentPageSize });
+  }
+
+  function handlePageSizeChange(nextPageSize: PageSizeOption) {
+    updateSearch({ page: 1, modelId: selectedModelId, pageSize: nextPageSize });
+  }
+
+  async function handleDeleteHistoryItem(jobId: string) {
+    if (!authState) {
+      return;
+    }
+
+    const confirmed = window.confirm("Delete this history item? This action cannot be undone.");
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingJobId(jobId);
+    setHistoryError(null);
+
+    try {
+      await deleteHistoryItem(authState.accessToken, jobId);
+      await refreshAfterMutation();
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setHistoryError(err.message);
+      } else {
+        setHistoryError("Unable to delete history item.");
+      }
+    } finally {
+      setDeletingJobId(null);
+    }
+  }
+
+  async function handleClearHistory() {
+    if (!authState) {
+      return;
+    }
+
+    const confirmed = window.confirm("Clear all history for your account? This action cannot be undone.");
+    if (!confirmed) {
+      return;
+    }
+
+    setClearingHistory(true);
+    setHistoryError(null);
+
+    try {
+      await clearHistory(authState.accessToken);
+      if (currentPage !== 1) {
+        updateSearch({ page: 1, modelId: selectedModelId, pageSize: currentPageSize });
+      } else {
+        await loadHistoryData();
+      }
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setHistoryError(err.message);
+      } else {
+        setHistoryError("Unable to clear history.");
+      }
+    } finally {
+      setClearingHistory(false);
+    }
   }
 
   function renderHistoryState(items: HistoryItem[]) {
@@ -182,12 +280,22 @@ export function HistoryPage() {
                 </div>
               </div>
 
-              <Link
-                className="rounded-md border border-slate-300 px-4 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50"
-                to={`/inference?jobId=${encodeURIComponent(item.job_id)}`}
-              >
-                View results
-              </Link>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Link
+                  className="rounded-md border border-slate-300 px-4 py-2 text-center text-sm font-medium text-slate-700 hover:bg-slate-50"
+                  to={`/inference?jobId=${encodeURIComponent(item.job_id)}`}
+                >
+                  View results
+                </Link>
+                <button
+                  className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={actionInProgress || historyLoading}
+                  onClick={() => void handleDeleteHistoryItem(item.job_id)}
+                  type="button"
+                >
+                  {deletingJobId === item.job_id ? "Deleting..." : "Delete"}
+                </button>
+              </div>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-3 xl:grid-cols-4">
@@ -235,8 +343,8 @@ export function HistoryPage() {
               <label className="block text-sm font-medium text-slate-700">
                 Model
                 <select
-                  className="mt-1 w-full min-w-60 rounded-md border border-slate-300 bg-white px-3 py-2"
-                  disabled={modelsLoading}
+                  className="mt-1 w-full min-w-52 rounded-md border border-slate-300 bg-white px-3 py-2"
+                  disabled={modelsLoading || actionInProgress}
                   onChange={(event) => handleFilterChange(event.target.value)}
                   value={selectedModelId}
                 >
@@ -249,12 +357,38 @@ export function HistoryPage() {
                 </select>
               </label>
 
+              <label className="block text-sm font-medium text-slate-700">
+                Page size
+                <select
+                  className="mt-1 w-full min-w-32 rounded-md border border-slate-300 bg-white px-3 py-2"
+                  disabled={historyLoading || actionInProgress}
+                  onChange={(event) => handlePageSizeChange(Number(event.target.value) as PageSizeOption)}
+                  value={currentPageSize}
+                >
+                  {PAGE_SIZE_OPTIONS.map((sizeOption) => (
+                    <option key={sizeOption} value={sizeOption}>
+                      {sizeOption}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <button
-                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={historyLoading || actionInProgress}
                 onClick={() => void loadHistoryData()}
                 type="button"
               >
                 Refresh
+              </button>
+
+              <button
+                className="rounded-md border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!hasHistoryItems || historyLoading || actionInProgress}
+                onClick={() => void handleClearHistory()}
+                type="button"
+              >
+                {clearingHistory ? "Clearing..." : "Clear all"}
               </button>
             </div>
           </div>
@@ -268,7 +402,7 @@ export function HistoryPage() {
             </div>
             <div className="rounded-xl bg-slate-50 p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Page size</p>
-              <p className="mt-2 text-xl font-semibold text-slate-900">{history?.page_size ?? PAGE_SIZE}</p>
+              <p className="mt-2 text-xl font-semibold text-slate-900">{history?.page_size ?? currentPageSize}</p>
             </div>
             <div className="rounded-xl bg-slate-50 p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total jobs</p>
@@ -291,16 +425,16 @@ export function HistoryPage() {
             <div className="flex gap-3">
               <button
                 className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={currentPage <= 1 || historyLoading}
-                onClick={() => updateSearch({ page: currentPage - 1, modelId: selectedModelId })}
+                disabled={currentPage <= 1 || historyLoading || actionInProgress}
+                onClick={() => updateSearch({ page: currentPage - 1, modelId: selectedModelId, pageSize: currentPageSize })}
                 type="button"
               >
                 Previous
               </button>
               <button
                 className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={currentPage >= totalPages || historyLoading}
-                onClick={() => updateSearch({ page: currentPage + 1, modelId: selectedModelId })}
+                disabled={currentPage >= totalPages || historyLoading || actionInProgress}
+                onClick={() => updateSearch({ page: currentPage + 1, modelId: selectedModelId, pageSize: currentPageSize })}
                 type="button"
               >
                 Next
@@ -312,3 +446,4 @@ export function HistoryPage() {
     </AppShell>
   );
 }
+

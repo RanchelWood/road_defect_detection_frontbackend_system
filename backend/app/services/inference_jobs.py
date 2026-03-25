@@ -169,6 +169,16 @@ class InferenceJobService:
             )
         return job
 
+    def delete_owned_history_job(self, db: Session, user: User, job_id: str) -> None:
+        job = self.get_owned_job(db=db, user=user, job_id=job_id)
+        db.delete(job)
+        db.commit()
+
+    def clear_owned_history(self, db: Session, user: User) -> int:
+        deleted_count = db.query(InferenceJob).filter(InferenceJob.user_id == user.id).delete(synchronize_session=False)
+        db.commit()
+        return deleted_count
+
     def list_history(
         self,
         db: Session,
@@ -300,3 +310,4 @@ class InferenceJobService:
         target_path = job_dir / f"input{suffix}"
         target_path.write_bytes(file_bytes)
         return target_path
+

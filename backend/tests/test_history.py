@@ -139,3 +139,69 @@ def test_history_computes_stats_and_handles_malformed_detection_json(client, db_
     malformed_item = item_by_id[malformed_job_id]
     assert "defect_count" not in malformed_item
     assert "max_confidence" not in malformed_item
+
+def test_history_delete_endpoints_require_authentication(client):
+    clear_response = client.delete("/history")
+    assert clear_response.status_code == 401
+    assert clear_response.json()["error"]["code"] == "AUTH_TOKEN_INVALID"
+
+    delete_one_response = client.delete(f"/history/{uuid4()}")
+    assert delete_one_response.status_code == 401
+    assert delete_one_response.json()["error"]["code"] == "AUTH_TOKEN_INVALID"
+
+
+def test_delete_history_item_is_owner_scoped_and_not_found_style(client, db_session):
+    owner_headers = _register_and_auth(client, email=f"del-owner-{uuid4()}@example.com")
+    other_headers = _register_and_auth(client, email=f"del-other-{uuid4()}@example.com")
+
+    owner_job_id = _create_job(client, owner_headers)
+    other_job_id = _create_job(client, other_headers)
+
+    non_owner_delete = client.delete(f"/history/{owner_job_id}", headers=other_headers)
+    assert non_owner_delete.status_code == 404
+    assert non_owner_delete.json()["error"]["code"] == "NOT_FOUND"
+
+    missing_delete = client.delete(f"/history/{uuid4()}", headers=owner_headers)
+    assert missing_delete.status_code == 404
+    assert missing_delete.json()["error"]["code"] == "NOT_FOUND"
+
+    owner_delete = client.delete(f"/history/{owner_job_id}", headers=owner_headers)
+    assert owner_delete.status_code == 200
+    owner_payload = owner_delete.json()["data"]
+    assert owner_payload["job_id"] == owner_job_id
+    assert owner_payload["message"] == "History item deleted."
+
+    owner_job = db_session.query(InferenceJob).filter(InferenceJob.id == owner_job_id).first()
+    other_job = db_session.query(InferenceJob).filter(InferenceJob.id == other_job_id).first()
+    assert owner_job is None
+    assert other_job is not None
+
+
+def test_clear_history_only_removes_callers_jobs(client, db_session):
+    owner_headers = _register_and_auth(client, email=f"clear-owner-{uuid4()}@example.com")
+    other_headers = _register_and_auth(client, email=f"clear-other-{uuid4()}@example.com")
+
+    owner_job_ids = [_create_job(client, owner_headers), _create_job(client, owner_headers)]
+    other_job_id = _create_job(client, other_headers)
+
+    clear_response = client.delete("/history", headers=owner_headers)
+    assert clear_response.status_code == 200
+    payload = clear_response.json()["data"]
+    assert payload["message"] == "History cleared."
+    assert payload["deleted_count"] == 2
+
+    for owner_job_id in owner_job_ids:
+        owner_job = db_session.query(InferenceJob).filter(InferenceJob.id == owner_job_id).first()
+        assert owner_job is None
+
+    other_job = db_session.query(InferenceJob).filter(InferenceJob.id == other_job_id).first()
+    assert other_job is not None
+
+    owner_history = client.get("/history", headers=owner_headers)
+    assert owner_history.status_code == 200
+    assert owner_history.json()["data"]["total"] == 0
+
+    other_history = client.get("/history", headers=other_headers)
+    assert other_history.status_code == 200
+    assert other_history.json()["data"]["total"] == 1
+

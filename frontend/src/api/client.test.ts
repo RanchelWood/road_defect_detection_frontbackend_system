@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiClientError, getBlob, getJson, postJson, setUnauthorizedHandler } from "./client";
+import { ApiClientError, deleteJson, getBlob, getJson, postJson, setUnauthorizedHandler } from "./client";
 
 function successEnvelope(data: unknown) {
   return {
@@ -36,6 +36,24 @@ describe("api/client", () => {
     expect(init.method).toBe("POST");
     expect(init.headers).toMatchObject({ "Content-Type": "application/json" });
     expect(init.body).toBe(JSON.stringify({ email: "a@b.com" }));
+  });
+
+  it("deleteJson sends DELETE and returns envelope data", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify(successEnvelope({ message: "ok" })), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    const data = await deleteJson<{ message: string }>("/history/job-1", "token-123");
+
+    expect(data).toEqual({ message: "ok" });
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.method).toBe("DELETE");
+    expect(init.headers).toMatchObject({ Authorization: "Bearer token-123" });
   });
 
   it("getJson triggers unauthorized handler on 401 and throws ApiClientError", async () => {
@@ -81,3 +99,4 @@ describe("api/client", () => {
     });
   });
 });
+

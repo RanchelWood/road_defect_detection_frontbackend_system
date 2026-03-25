@@ -1,0 +1,61 @@
+[33mcommit 9a9b8e40ebe7b113a457fa2e665c09f61af7a1a6[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m)[m
+Author: RanchelW <18926447935@163.com>
+Date:   Mon Mar 23 16:36:30 2026 +0800
+
+    Fix inference polling and timer drift and sync MVP documentation
+    
+    Milestone 2 finished
+
+[33mcommit 7b3c0559988bfc6feb7630aa5fb0055722d1c735[m
+Author: RanchelW <18926447935@163.com>
+Date:   Sun Mar 22 22:55:03 2026 +0800
+
+    Add beginner launch guide and link it from README
+
+[33mcommit 5fdca5c8d986894dec92cfe9eeed0c2dc97f1135[m
+Author: RanchelW <18926447935@163.com>
+Date:   Sun Mar 22 21:14:52 2026 +0800
+
+    Add Test Engineer workflow and bug lifecycle governance docs
+
+[33mcommit c1e62ffe8d95505c110421d65caefbe1443f952e[m
+Author: RanchelW <18926447935@163.com>
+Date:   Sun Mar 22 20:43:43 2026 +0800
+
+    Milestone 2 completed - crude MVP version done
+
+[33mcommit 81d1401d20e81f3b791a7980ff5781252b2584fe[m
+Author: RanchelW <18926447935@163.com>
+Date:   Sun Mar 22 19:31:20 2026 +0800
+
+    Add paginated user history endpoint with robust API tests
+
+[33mcommit 563a171a66ce4595c1151333550fe71be8b5eab7[m
+Author: RanchelW <18926447935@163.com>
+Date:   Sun Mar 22 19:13:27 2026 +0800
+
+    Milestone 2B completed
+
+[33mcommit 2c95246d15e76c9aebd3984e17d67fd9e188c5d2[m
+Author: RanchelW <18926447935@163.com>
+Date:   Sun Mar 22 16:57:45 2026 +0800
+
+    Implement async inference job API and adapter scaffolding
+
+[33mcommit a3b40f4ff20de6d423b117dbcbd20cff58be1e01[m
+Author: RanchelW <18926447935@163.com>
+Date:   Sun Mar 22 16:27:06 2026 +0800
+
+    Milestone 2 pre-planed: documentation edition only
+
+[33mcommit 2ddac58f55edf19a7c28c7f53bfd61868a6db748[m
+Author: RanchelW <18926447935@163.com>
+Date:   Sun Mar 22 14:56:37 2026 +0800
+
+    Milestone 1: skeleton & base function
+
+[33mcommit 47fa960ccafdd24f9708d03af66d0c7bbf0e4255[m
+Author: RanchelW <18926447935@163.com>
+Date:   Sat Mar 21 21:43:11 2026 +0800
+
+    documentation + scaffold

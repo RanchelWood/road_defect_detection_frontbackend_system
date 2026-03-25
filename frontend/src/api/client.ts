@@ -118,6 +118,16 @@ export async function getJson<TResponse>(path: string, token?: string): Promise<
   );
 }
 
+export async function deleteJson<TResponse>(path: string, token: string): Promise<TResponse> {
+  return requestJson<TResponse>(
+    path,
+    {
+      method: "DELETE",
+    },
+    token,
+  );
+}
+
 export async function getBlob(path: string, token: string): Promise<Blob> {
   const response = await fetch(`${API_BASE}${path}`, {
     method: "GET",
@@ -137,3 +147,4 @@ export async function getBlob(path: string, token: string): Promise<Blob> {
 
   return response.blob();
 }
+

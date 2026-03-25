@@ -9,7 +9,10 @@ This matrix ties each UI screen to backend endpoints and expected response state
 | Dashboard | `GET /models` | Skeleton cards | Actions enabled | Non-blocking alert | If models unavailable, fallback message |
 | Image Inference Submit | `GET /models`, `POST /inference/jobs` | Disable submit and show queue state | Show `job_id` and start polling | Show API error with retry | Before first run show upload prompt |
 | Image Inference Poll | `GET /inference/jobs/{job_id}` (polling) | Show `queued/running` status indicator | Render annotated image + detections on `succeeded` | Show failure state on `failed` | N/A |
-| History | `GET /history` | Table skeleton | Render job list with statuses and details | Show retry alert | Show no-history illustration |
+| History list + filters | `GET /history` | Card/list skeleton | Render job list with statuses and details | Show retry alert | Show no-history illustration |
+| History delete one | `DELETE /history/{job_id}` + follow-up `GET /history` | Disable delete buttons and show deleting state | Item removed and totals/pagination refreshed | Show API error message and keep list stable | If last item deleted, empty state appears |
+| History clear all | `DELETE /history` + follow-up `GET /history` | Disable actions and show clearing state | All user history removed; page resets safely | Show API error message and keep list stable | Empty state shown with CTA |
+| History page size | `GET /history?page_size=10|20|50` | Disable controls during refresh | List count and pagination update to selected size | Show API error and preserve safe defaults | N/A |
 
 ## UI State Contract Rules
 
@@ -18,3 +21,7 @@ This matrix ties each UI screen to backend endpoints and expected response state
 - Job polling must stop when terminal status (`succeeded` or `failed`) is reached.
 - Queued/running states must be visible to user with clear progress messaging.
 - Failed jobs must show error summary and retry action.
+- History page size supports exactly `10`, `20`, `50`; changing size resets to page `1`.
+- Delete-one and clear-all are account-scoped operations only and must not affect other users.
+- After delete mutations, frontend must refresh and avoid empty-page confusion by falling back to a valid page.
+

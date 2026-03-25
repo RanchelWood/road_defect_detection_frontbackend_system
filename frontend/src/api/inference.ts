@@ -1,4 +1,4 @@
-import { getBlob, getJson, postFormData } from "./client";
+import { deleteJson, getBlob, getJson, postFormData } from "./client";
 import type {
   HistoryListResponse,
   InferenceJobDetail,
@@ -13,6 +13,16 @@ type HistoryQuery = {
 };
 
 type InferenceImageKind = "original" | "annotated";
+
+type DeleteHistoryItemResponse = {
+  message: string;
+  job_id: string;
+};
+
+type ClearHistoryResponse = {
+  message: string;
+  deleted_count: number;
+};
 
 export function listModels(token: string): Promise<ModelListResponse> {
   return getJson<ModelListResponse>("/models", token);
@@ -52,3 +62,12 @@ export function getHistory(token: string, query: HistoryQuery): Promise<HistoryL
   const suffix = params.toString() ? `?${params.toString()}` : "";
   return getJson<HistoryListResponse>(`/history${suffix}`, token);
 }
+
+export function deleteHistoryItem(token: string, jobId: string): Promise<DeleteHistoryItemResponse> {
+  return deleteJson<DeleteHistoryItemResponse>(`/history/${jobId}`, token);
+}
+
+export function clearHistory(token: string): Promise<ClearHistoryResponse> {
+  return deleteJson<ClearHistoryResponse>("/history", token);
+}
+

@@ -213,6 +213,37 @@ paths:
                 $ref: '#/components/schemas/SuccessEnvelopeHistory'
         '401':
           $ref: '#/components/responses/ErrorResponse'
+    delete:
+      summary: Clear all history records for current user
+      responses:
+        '200':
+          description: History cleared
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelopeHistoryCleared'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+  /history/{job_id}:
+    delete:
+      summary: Delete one history record owned by current user
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: History record deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelopeHistoryDeleted'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
   /ws/inference:
     get:
       summary: Reserved Phase 2 WebSocket contract endpoint
@@ -625,6 +656,54 @@ components:
               type: integer
         meta:
           $ref: '#/components/schemas/Meta'
+    HistoryDeletedPayload:
+      type: object
+      required:
+        - message
+        - job_id
+      properties:
+        message:
+          type: string
+        job_id:
+          type: string
+    HistoryClearedPayload:
+      type: object
+      required:
+        - message
+        - deleted_count
+      properties:
+        message:
+          type: string
+        deleted_count:
+          type: integer
+    SuccessEnvelopeHistoryDeleted:
+      type: object
+      required:
+        - success
+        - data
+        - meta
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/HistoryDeletedPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
+    SuccessEnvelopeHistoryCleared:
+      type: object
+      required:
+        - success
+        - data
+        - meta
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/HistoryClearedPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
     SuccessEnvelopeMessage:
       type: object
       required:
@@ -644,3 +723,4 @@ components:
               type: string
         meta:
           $ref: '#/components/schemas/Meta'
+
