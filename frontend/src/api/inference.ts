@@ -1,15 +1,20 @@
-import { deleteJson, getBlob, getJson, postFormData } from "./client";
+import { deleteJson, getBlob, getJson, postFormData, postJson } from "./client";
 import type {
   HistoryListResponse,
+  HistorySortBy,
   InferenceJobDetail,
+  InferenceJobStatus,
   InferenceJobSubmission,
   ModelListResponse,
+  SortOrder,
 } from "../types";
 
 type HistoryQuery = {
   page?: number;
   pageSize?: number;
   modelId?: string;
+  sortBy?: HistorySortBy;
+  sortOrder?: SortOrder;
 };
 
 type InferenceImageKind = "original" | "annotated";
@@ -24,6 +29,12 @@ type ClearHistoryResponse = {
   deleted_count: number;
 };
 
+type CancelInferenceJobResponse = {
+  job_id: string;
+  status: InferenceJobStatus;
+  message: string;
+};
+
 export function listModels(token: string): Promise<ModelListResponse> {
   return getJson<ModelListResponse>("/models", token);
 }
@@ -36,6 +47,10 @@ export function createInferenceJob(
   formData.set("model_id", payload.modelId);
   formData.set("image", payload.image);
   return postFormData<InferenceJobSubmission>("/inference/jobs", formData, token);
+}
+
+export function cancelInferenceJob(token: string, jobId: string): Promise<CancelInferenceJobResponse> {
+  return postJson<CancelInferenceJobResponse, Record<string, never>>(`/inference/jobs/${jobId}/cancel`, {}, token);
 }
 
 export function getInferenceJob(token: string, jobId: string): Promise<InferenceJobDetail> {
@@ -58,6 +73,12 @@ export function getHistory(token: string, query: HistoryQuery): Promise<HistoryL
   if (query.modelId) {
     params.set("model_id", query.modelId);
   }
+  if (query.sortBy) {
+    params.set("sort_by", query.sortBy);
+  }
+  if (query.sortOrder) {
+    params.set("sort_order", query.sortOrder);
+  }
 
   const suffix = params.toString() ? `?${params.toString()}` : "";
   return getJson<HistoryListResponse>(`/history${suffix}`, token);
@@ -70,4 +91,3 @@ export function deleteHistoryItem(token: string, jobId: string): Promise<DeleteH
 export function clearHistory(token: string): Promise<ClearHistoryResponse> {
   return deleteJson<ClearHistoryResponse>("/history", token);
 }
-

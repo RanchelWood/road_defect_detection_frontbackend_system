@@ -5,6 +5,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import BackgroundTasks, HTTPException, status
+from sqlalchemy import asc, desc, func
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -18,6 +19,9 @@ from app.services.model_registry import ModelRegistryService
 
 
 class InferenceJobService:
+    _CANCEL_REQUESTED_CODE = "CANCEL_REQUESTED"
+    _JOB_CANCELLED_CODE = "JOB_CANCELLED"
+
     def __init__(
         self,
         model_registry: ModelRegistryService | None = None,
@@ -123,7 +127,18 @@ class InferenceJobService:
                 input_image_path=job.input_path,
                 job_workspace=str(workspace),
                 model=model,
+                cancel_requested=lambda: self._is_cancel_requested(job_id),
             )
+
+            if self._is_cancel_requested(job_id):
+                self._mark_cancelled(db=db, job_id=job_id, message="Inference job cancelled by user request.")
+                return
+
+            job = db.query(InferenceJob).filter(InferenceJob.id == job_id).first()
+            if job is None:
+                return
+            if job.status == "cancelled":
+                return
 
             job.status = "succeeded"
             job.output_path = result.annotated_image_path
@@ -133,20 +148,30 @@ class InferenceJobService:
             db.add(job)
             db.commit()
         except AdapterExecutionError as exc:
-            self._mark_failed(db=db, job_id=job_id, error_code=exc.code, error_message=exc.message)
+            if exc.code == self._JOB_CANCELLED_CODE:
+                self._mark_cancelled(db=db, job_id=job_id, message=exc.message)
+            elif self._is_cancel_requested(job_id):
+                self._mark_cancelled(db=db, job_id=job_id, message="Inference job cancelled by user request.")
+            else:
+                self._mark_failed(db=db, job_id=job_id, error_code=exc.code, error_message=exc.message)
         except Exception as exc:  # pragma: no cover - defensive fallback for unexpected runtime issues.
-            self._mark_failed(
-                db=db,
-                job_id=job_id,
-                error_code="ENGINE_EXECUTION_FAILED",
-                error_message=str(exc),
-            )
+            if self._is_cancel_requested(job_id):
+                self._mark_cancelled(db=db, job_id=job_id, message="Inference job cancelled by user request.")
+            else:
+                self._mark_failed(
+                    db=db,
+                    job_id=job_id,
+                    error_code="ENGINE_EXECUTION_FAILED",
+                    error_message=str(exc),
+                )
         finally:
             db.close()
 
     def _mark_failed(self, db: Session, job_id: str, error_code: str, error_message: str) -> None:
         job = db.query(InferenceJob).filter(InferenceJob.id == job_id).first()
         if job is None:
+            return
+        if job.status == "cancelled":
             return
 
         job.status = "failed"
@@ -155,6 +180,28 @@ class InferenceJobService:
         job.finished_at = datetime.now(UTC)
         db.add(job)
         db.commit()
+
+    def _mark_cancelled(self, db: Session, job_id: str, message: str) -> None:
+        job = db.query(InferenceJob).filter(InferenceJob.id == job_id).first()
+        if job is None:
+            return
+
+        job.status = "cancelled"
+        job.error_code = self._JOB_CANCELLED_CODE
+        job.error_message = message[:2000]
+        job.finished_at = datetime.now(UTC)
+        db.add(job)
+        db.commit()
+
+    def _is_cancel_requested(self, job_id: str) -> bool:
+        db = SessionLocal()
+        try:
+            job = db.query(InferenceJob).filter(InferenceJob.id == job_id).first()
+            if job is None:
+                return False
+            return job.error_code == self._CANCEL_REQUESTED_CODE or job.status == "cancelled"
+        finally:
+            db.close()
 
     def get_owned_job(self, db: Session, user: User, job_id: str) -> InferenceJob:
         job = db.query(InferenceJob).filter(InferenceJob.id == job_id, InferenceJob.user_id == user.id).first()
@@ -167,6 +214,30 @@ class InferenceJobService:
                     "details": {"job_id": job_id},
                 },
             )
+        return job
+
+    def cancel_owned_job(self, db: Session, user: User, job_id: str) -> InferenceJob:
+        job = self.get_owned_job(db=db, user=user, job_id=job_id)
+
+        if job.status == "queued":
+            job.status = "cancelled"
+            job.error_code = self._JOB_CANCELLED_CODE
+            job.error_message = "Cancelled by user."
+            job.finished_at = datetime.now(UTC)
+            db.add(job)
+            db.commit()
+            db.refresh(job)
+            return job
+
+        if job.status == "running":
+            job.error_code = self._CANCEL_REQUESTED_CODE
+            job.error_message = "Cancellation requested by user."
+            db.add(job)
+            db.commit()
+            db.refresh(job)
+            return job
+
+        db.refresh(job)
         return job
 
     def delete_owned_history_job(self, db: Session, user: User, job_id: str) -> None:
@@ -186,14 +257,25 @@ class InferenceJobService:
         page: int = 1,
         page_size: int = 20,
         model_id: str | None = None,
+        sort_by: str = "time",
+        sort_order: str = "desc",
     ) -> dict[str, object]:
         query = db.query(InferenceJob).filter(InferenceJob.user_id == user.id)
         if model_id:
             query = query.filter(InferenceJob.model_id == model_id)
 
+        if sort_by == "id":
+            primary_sort = InferenceJob.id
+        elif sort_by == "name":
+            primary_sort = InferenceJob.original_filename
+        else:
+            primary_sort = func.coalesce(InferenceJob.finished_at, InferenceJob.started_at, InferenceJob.created_at)
+
+        order_fn = desc if sort_order == "desc" else asc
+
         total = query.count()
         jobs = (
-            query.order_by(InferenceJob.created_at.desc())
+            query.order_by(order_fn(primary_sort), order_fn(InferenceJob.id))
             .offset((page - 1) * page_size)
             .limit(page_size)
             .all()
@@ -310,4 +392,3 @@ class InferenceJobService:
         target_path = job_dir / f"input{suffix}"
         target_path.write_bytes(file_bytes)
         return target_path
-

@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -44,8 +45,14 @@ class SuccessfulAdapter(InferenceEngineAdapter):
             )
         ]
 
-    def run(self, input_image_path: str, job_workspace: str, model: ModelPreset) -> AdapterExecutionResult:
-        _ = model
+    def run(
+        self,
+        input_image_path: str,
+        job_workspace: str,
+        model: ModelPreset,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> AdapterExecutionResult:
+        _ = (model, cancel_requested)
         assert Path(input_image_path).exists()
         workspace = Path(job_workspace)
         workspace.mkdir(parents=True, exist_ok=True)
@@ -73,9 +80,41 @@ class FailingAdapter(InferenceEngineAdapter):
             )
         ]
 
-    def run(self, input_image_path: str, job_workspace: str, model: ModelPreset) -> AdapterExecutionResult:
-        _ = (input_image_path, job_workspace, model)
+    def run(
+        self,
+        input_image_path: str,
+        job_workspace: str,
+        model: ModelPreset,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> AdapterExecutionResult:
+        _ = (input_image_path, job_workspace, model, cancel_requested)
         raise AdapterExecutionError("ENGINE_RUNTIME_ERROR", "Simulated adapter runtime failure")
+
+
+class CancelledAdapter(InferenceEngineAdapter):
+    @property
+    def engine_id(self) -> str:
+        return "fake-engine"
+
+    def list_models(self) -> list[ModelPreset]:
+        return [
+            ModelPreset(
+                model_id="fake-model",
+                engine_id=self.engine_id,
+                display_name="Fake Model",
+                description="Test-only cancelled adapter model.",
+            )
+        ]
+
+    def run(
+        self,
+        input_image_path: str,
+        job_workspace: str,
+        model: ModelPreset,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> AdapterExecutionResult:
+        _ = (input_image_path, job_workspace, model, cancel_requested)
+        raise AdapterExecutionError("JOB_CANCELLED", "Inference job was cancelled.")
 
 
 def _create_user(db_session):
@@ -153,6 +192,34 @@ def test_execute_job_marks_failed_on_adapter_error(db_session):
     assert refreshed.finished_at is not None
     assert refreshed.error_code == "ENGINE_RUNTIME_ERROR"
     assert "Simulated adapter runtime failure" in (refreshed.error_message or "")
+
+
+def test_execute_job_marks_cancelled_when_adapter_signals_cancellation(db_session):
+    adapter = CancelledAdapter()
+    registry = StaticEngineRegistry(adapter)
+    service = InferenceJobService(
+        model_registry=ModelRegistryService(engine_registry=registry),
+        engine_registry=registry,
+        dispatcher=InferenceDispatcher(autorun_enabled=False),
+    )
+
+    user = _create_user(db_session)
+    job = service.create_queued_job(
+        db=db_session,
+        user=user,
+        model_id="fake-model",
+        original_filename="road.jpg",
+        file_bytes=b"image-bytes",
+    )
+
+    service.execute_job(job.id)
+    db_session.expire_all()
+
+    refreshed = db_session.query(InferenceJob).filter(InferenceJob.id == job.id).first()
+    assert refreshed is not None
+    assert refreshed.status == "cancelled"
+    assert refreshed.finished_at is not None
+    assert refreshed.error_code == "JOB_CANCELLED"
 
 
 def test_recover_pending_jobs_requeues_running_jobs(db_session):

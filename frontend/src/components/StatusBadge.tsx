@@ -5,6 +5,7 @@ const STATUS_STYLES: Record<InferenceJobStatus, string> = {
   running: "bg-sky-100 text-sky-800",
   succeeded: "bg-emerald-100 text-emerald-800",
   failed: "bg-red-100 text-red-800",
+  cancelled: "bg-slate-200 text-slate-800",
 };
 
 export function StatusBadge({ status }: { status: InferenceJobStatus }) {

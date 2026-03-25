@@ -1,4 +1,5 @@
-﻿from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 
 
@@ -44,5 +45,11 @@ class InferenceEngineAdapter(ABC):
         """Return engine-backed model presets."""
 
     @abstractmethod
-    def run(self, input_image_path: str, job_workspace: str, model: ModelPreset) -> AdapterExecutionResult:
+    def run(
+        self,
+        input_image_path: str,
+        job_workspace: str,
+        model: ModelPreset,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> AdapterExecutionResult:
         """Run inference for one job and return normalized execution output."""

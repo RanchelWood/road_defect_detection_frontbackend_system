@@ -36,10 +36,30 @@ def test_rddc_adapter_returns_engine_timeout_when_subprocess_hangs(tmp_path, mon
         weights=("weights/IMSC/last_95.pt",),
     )
 
-    def _raise_timeout(*args, **kwargs):
-        raise subprocess.TimeoutExpired(cmd="detect.py", timeout=1)
+    class _HangingProcess:
+        def __init__(self, *args, **kwargs):
+            _ = (args, kwargs)
+            self.returncode = None
 
-    monkeypatch.setattr(subprocess, "run", _raise_timeout)
+        def communicate(self, input=None, timeout=None):
+            _ = input
+            raise subprocess.TimeoutExpired(cmd="detect.py", timeout=timeout or 0)
+
+        def poll(self):
+            return self.returncode
+
+        def terminate(self):
+            self.returncode = 1
+
+        def wait(self, timeout=None):
+            _ = timeout
+            self.returncode = 1
+            return self.returncode
+
+        def kill(self):
+            self.returncode = -9
+
+    monkeypatch.setattr(subprocess, "Popen", _HangingProcess)
 
     with pytest.raises(AdapterExecutionError) as exc_info:
         adapter.run(

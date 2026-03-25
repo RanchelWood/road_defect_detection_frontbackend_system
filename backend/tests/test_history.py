@@ -15,12 +15,17 @@ def _register_and_auth(client, email: str | None = None) -> dict[str, str]:
     return {"Authorization": f"Bearer {payload['access_token']}"}
 
 
-def _create_job(client, headers: dict[str, str], model_id: str = "rddc2020-imsc-last95") -> str:
+def _create_job(
+    client,
+    headers: dict[str, str],
+    model_id: str = "rddc2020-imsc-last95",
+    filename: str = "road.jpg",
+) -> str:
     response = client.post(
         "/inference/jobs",
         headers=headers,
         data={"model_id": model_id},
-        files={"image": ("road.jpg", b"fake-image-data", "image/jpeg")},
+        files={"image": (filename, b"fake-image-data", "image/jpeg")},
     )
     assert response.status_code == 202
     return response.json()["data"]["job_id"]
@@ -84,6 +89,55 @@ def test_history_is_user_scoped_and_supports_pagination_and_model_filter(client,
     assert all(item["model_id"] == "rddc2020-imsc-last95" for item in filtered_data["items"])
 
 
+def test_history_sorting_by_time_id_and_name(client, db_session):
+    headers = _register_and_auth(client, email=f"sort-history-{uuid4()}@example.com")
+
+    job_c = _create_job(client, headers, filename="c.jpg")
+    job_a = _create_job(client, headers, filename="a.jpg")
+    job_b = _create_job(client, headers, filename="b.jpg")
+
+    base_time = datetime.now(UTC)
+    job_c_row = db_session.query(InferenceJob).filter(InferenceJob.id == job_c).first()
+    job_a_row = db_session.query(InferenceJob).filter(InferenceJob.id == job_a).first()
+    job_b_row = db_session.query(InferenceJob).filter(InferenceJob.id == job_b).first()
+    assert job_c_row is not None
+    assert job_a_row is not None
+    assert job_b_row is not None
+
+    job_c_row.created_at = base_time + timedelta(seconds=30)
+    job_a_row.created_at = base_time + timedelta(seconds=10)
+    job_b_row.created_at = base_time + timedelta(seconds=20)
+    db_session.add(job_c_row)
+    db_session.add(job_a_row)
+    db_session.add(job_b_row)
+    db_session.commit()
+
+    time_asc = client.get("/history?sort_by=time&sort_order=asc&page_size=100", headers=headers)
+    assert time_asc.status_code == 200
+    time_asc_ids = [item["job_id"] for item in time_asc.json()["data"]["items"]]
+    assert time_asc_ids == [job_a, job_b, job_c]
+
+    time_desc = client.get("/history?sort_by=time&sort_order=desc&page_size=100", headers=headers)
+    assert time_desc.status_code == 200
+    time_desc_ids = [item["job_id"] for item in time_desc.json()["data"]["items"]]
+    assert time_desc_ids == [job_c, job_b, job_a]
+
+    id_asc = client.get("/history?sort_by=id&sort_order=asc&page_size=100", headers=headers)
+    assert id_asc.status_code == 200
+    id_asc_ids = [item["job_id"] for item in id_asc.json()["data"]["items"]]
+    assert id_asc_ids == sorted([job_c, job_a, job_b])
+
+    id_desc = client.get("/history?sort_by=id&sort_order=desc&page_size=100", headers=headers)
+    assert id_desc.status_code == 200
+    id_desc_ids = [item["job_id"] for item in id_desc.json()["data"]["items"]]
+    assert id_desc_ids == sorted([job_c, job_a, job_b], reverse=True)
+
+    name_asc = client.get("/history?sort_by=name&sort_order=asc&page_size=100", headers=headers)
+    assert name_asc.status_code == 200
+    name_asc_ids = [item["job_id"] for item in name_asc.json()["data"]["items"]]
+    assert name_asc_ids == [job_a, job_b, job_c]
+
+
 def test_history_computes_stats_and_handles_malformed_detection_json(client, db_session):
     headers = _register_and_auth(client, email=f"stats-history-{uuid4()}@example.com")
 
@@ -139,6 +193,7 @@ def test_history_computes_stats_and_handles_malformed_detection_json(client, db_
     malformed_item = item_by_id[malformed_job_id]
     assert "defect_count" not in malformed_item
     assert "max_confidence" not in malformed_item
+
 
 def test_history_delete_endpoints_require_authentication(client):
     clear_response = client.delete("/history")
@@ -204,4 +259,3 @@ def test_clear_history_only_removes_callers_jobs(client, db_session):
     other_history = client.get("/history", headers=other_headers)
     assert other_history.status_code == 200
     assert other_history.json()["data"]["total"] == 1
-

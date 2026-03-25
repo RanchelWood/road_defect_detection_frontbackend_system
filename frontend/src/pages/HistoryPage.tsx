@@ -6,11 +6,16 @@ import { ApiClientError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { AppShell } from "../components/AppShell";
 import { StatusBadge } from "../components/StatusBadge";
-import type { HistoryItem, HistoryListResponse, ModelSummary } from "../types";
+import type { HistoryItem, HistoryListResponse, HistorySortBy, ModelSummary, SortOrder } from "../types";
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50] as const;
 type PageSizeOption = (typeof PAGE_SIZE_OPTIONS)[number];
 const DEFAULT_PAGE_SIZE: PageSizeOption = 10;
+
+const SORT_BY_OPTIONS: readonly HistorySortBy[] = ["time", "id", "name"];
+const DEFAULT_SORT_BY: HistorySortBy = "time";
+const SORT_ORDER_OPTIONS: readonly SortOrder[] = ["desc", "asc"];
+const DEFAULT_SORT_ORDER: SortOrder = "desc";
 
 const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -48,6 +53,26 @@ function parsePageSize(rawPageSize: string | null): PageSizeOption {
   return PAGE_SIZE_OPTIONS.includes(parsed as PageSizeOption) ? (parsed as PageSizeOption) : DEFAULT_PAGE_SIZE;
 }
 
+function parseSortBy(rawSortBy: string | null): HistorySortBy {
+  return SORT_BY_OPTIONS.includes(rawSortBy as HistorySortBy) ? (rawSortBy as HistorySortBy) : DEFAULT_SORT_BY;
+}
+
+function parseSortOrder(rawSortOrder: string | null): SortOrder {
+  return SORT_ORDER_OPTIONS.includes(rawSortOrder as SortOrder) ? (rawSortOrder as SortOrder) : DEFAULT_SORT_ORDER;
+}
+
+function getSortByLabel(sortBy: HistorySortBy) {
+  if (sortBy === "id") {
+    return "Job ID";
+  }
+
+  if (sortBy === "name") {
+    return "Image name";
+  }
+
+  return "Time";
+}
+
 export function HistoryPage() {
   const { authState } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -64,10 +89,18 @@ export function HistoryPage() {
   const currentPage = parsePage(searchParams.get("page"));
   const currentPageSize = parsePageSize(searchParams.get("pageSize"));
   const selectedModelId = searchParams.get("modelId") ?? "";
+  const currentSortBy = parseSortBy(searchParams.get("sortBy"));
+  const currentSortOrder = parseSortOrder(searchParams.get("sortOrder"));
   const hasHistoryItems = (history?.total ?? 0) > 0;
   const actionInProgress = clearingHistory || deletingJobId !== null;
 
-  function updateSearch(next: { page?: number; modelId?: string; pageSize?: PageSizeOption }) {
+  function updateSearch(next: {
+    page?: number;
+    modelId?: string;
+    pageSize?: PageSizeOption;
+    sortBy?: HistorySortBy;
+    sortOrder?: SortOrder;
+  }) {
     const nextParams = new URLSearchParams(searchParams);
 
     if (next.page && next.page > 1) {
@@ -87,6 +120,20 @@ export function HistoryPage() {
       nextParams.delete("pageSize");
     } else {
       nextParams.set("pageSize", String(nextPageSize));
+    }
+
+    const nextSortBy = next.sortBy ?? currentSortBy;
+    if (nextSortBy === DEFAULT_SORT_BY) {
+      nextParams.delete("sortBy");
+    } else {
+      nextParams.set("sortBy", nextSortBy);
+    }
+
+    const nextSortOrder = next.sortOrder ?? currentSortOrder;
+    if (nextSortOrder === DEFAULT_SORT_ORDER) {
+      nextParams.delete("sortOrder");
+    } else {
+      nextParams.set("sortOrder", nextSortOrder);
     }
 
     setSearchParams(nextParams);
@@ -127,6 +174,8 @@ export function HistoryPage() {
         page: currentPage,
         pageSize: currentPageSize,
         modelId: selectedModelId || undefined,
+        sortBy: currentSortBy,
+        sortOrder: currentSortOrder,
       });
       setHistory(response);
       return response;
@@ -140,7 +189,7 @@ export function HistoryPage() {
     } finally {
       setHistoryLoading(false);
     }
-  }, [authState, currentPage, currentPageSize, selectedModelId]);
+  }, [authState, currentPage, currentPageSize, selectedModelId, currentSortBy, currentSortOrder]);
 
   useEffect(() => {
     void loadModels();
@@ -167,17 +216,55 @@ export function HistoryPage() {
     if (response.items.length === 0 && response.total > 0 && currentPage > 1) {
       const fallbackPage = Math.max(1, Math.ceil(response.total / currentPageSize));
       if (fallbackPage !== currentPage) {
-        updateSearch({ page: fallbackPage, modelId: selectedModelId, pageSize: currentPageSize });
+        updateSearch({
+          page: fallbackPage,
+          modelId: selectedModelId,
+          pageSize: currentPageSize,
+          sortBy: currentSortBy,
+          sortOrder: currentSortOrder,
+        });
       }
     }
-  }, [currentPage, currentPageSize, loadHistoryData, selectedModelId]);
+  }, [currentPage, currentPageSize, loadHistoryData, selectedModelId, currentSortBy, currentSortOrder]);
 
   function handleFilterChange(nextModelId: string) {
-    updateSearch({ page: 1, modelId: nextModelId, pageSize: currentPageSize });
+    updateSearch({
+      page: 1,
+      modelId: nextModelId,
+      pageSize: currentPageSize,
+      sortBy: currentSortBy,
+      sortOrder: currentSortOrder,
+    });
   }
 
   function handlePageSizeChange(nextPageSize: PageSizeOption) {
-    updateSearch({ page: 1, modelId: selectedModelId, pageSize: nextPageSize });
+    updateSearch({
+      page: 1,
+      modelId: selectedModelId,
+      pageSize: nextPageSize,
+      sortBy: currentSortBy,
+      sortOrder: currentSortOrder,
+    });
+  }
+
+  function handleSortByChange(nextSortBy: HistorySortBy) {
+    updateSearch({
+      page: 1,
+      modelId: selectedModelId,
+      pageSize: currentPageSize,
+      sortBy: nextSortBy,
+      sortOrder: currentSortOrder,
+    });
+  }
+
+  function handleSortOrderChange(nextSortOrder: SortOrder) {
+    updateSearch({
+      page: 1,
+      modelId: selectedModelId,
+      pageSize: currentPageSize,
+      sortBy: currentSortBy,
+      sortOrder: nextSortOrder,
+    });
   }
 
   async function handleDeleteHistoryItem(jobId: string) {
@@ -223,7 +310,13 @@ export function HistoryPage() {
     try {
       await clearHistory(authState.accessToken);
       if (currentPage !== 1) {
-        updateSearch({ page: 1, modelId: selectedModelId, pageSize: currentPageSize });
+        updateSearch({
+          page: 1,
+          modelId: selectedModelId,
+          pageSize: currentPageSize,
+          sortBy: currentSortBy,
+          sortOrder: currentSortOrder,
+        });
       } else {
         await loadHistoryData();
       }
@@ -335,7 +428,7 @@ export function HistoryPage() {
             <div>
               <h2 className="text-lg font-semibold text-slate-900">Filters</h2>
               <p className="mt-1 text-sm text-slate-600">
-                Filter the paginated history feed by model ID returned from `/models`.
+                Filter and sort your history feed using model, page size, and ordering controls.
               </p>
             </div>
 
@@ -343,7 +436,7 @@ export function HistoryPage() {
               <label className="block text-sm font-medium text-slate-700">
                 Model
                 <select
-                  className="mt-1 w-full min-w-52 rounded-md border border-slate-300 bg-white px-3 py-2"
+                  className="mt-1 w-full min-w-44 rounded-md border border-slate-300 bg-white px-3 py-2"
                   disabled={modelsLoading || actionInProgress}
                   onChange={(event) => handleFilterChange(event.target.value)}
                   value={selectedModelId}
@@ -358,9 +451,36 @@ export function HistoryPage() {
               </label>
 
               <label className="block text-sm font-medium text-slate-700">
-                Page size
+                Sort by
                 <select
                   className="mt-1 w-full min-w-32 rounded-md border border-slate-300 bg-white px-3 py-2"
+                  disabled={historyLoading || actionInProgress}
+                  onChange={(event) => handleSortByChange(event.target.value as HistorySortBy)}
+                  value={currentSortBy}
+                >
+                  <option value="time">Time</option>
+                  <option value="id">Job ID</option>
+                  <option value="name">Image name</option>
+                </select>
+              </label>
+
+              <label className="block text-sm font-medium text-slate-700">
+                Order
+                <select
+                  className="mt-1 w-full min-w-28 rounded-md border border-slate-300 bg-white px-3 py-2"
+                  disabled={historyLoading || actionInProgress}
+                  onChange={(event) => handleSortOrderChange(event.target.value as SortOrder)}
+                  value={currentSortOrder}
+                >
+                  <option value="desc">Desc</option>
+                  <option value="asc">Asc</option>
+                </select>
+              </label>
+
+              <label className="block text-sm font-medium text-slate-700">
+                Page size
+                <select
+                  className="mt-1 w-full min-w-24 rounded-md border border-slate-300 bg-white px-3 py-2"
                   disabled={historyLoading || actionInProgress}
                   onChange={(event) => handlePageSizeChange(Number(event.target.value) as PageSizeOption)}
                   value={currentPageSize}
@@ -395,7 +515,7 @@ export function HistoryPage() {
 
           {modelsError ? <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{modelsError}</p> : null}
 
-          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <div className="mt-5 grid gap-3 sm:grid-cols-4">
             <div className="rounded-xl bg-slate-50 p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Current page</p>
               <p className="mt-2 text-xl font-semibold text-slate-900">{history?.page ?? currentPage}</p>
@@ -403,6 +523,12 @@ export function HistoryPage() {
             <div className="rounded-xl bg-slate-50 p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Page size</p>
               <p className="mt-2 text-xl font-semibold text-slate-900">{history?.page_size ?? currentPageSize}</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Sort</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900">
+                {getSortByLabel(currentSortBy)} / {currentSortOrder.toUpperCase()}
+              </p>
             </div>
             <div className="rounded-xl bg-slate-50 p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Total jobs</p>
@@ -426,7 +552,15 @@ export function HistoryPage() {
               <button
                 className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={currentPage <= 1 || historyLoading || actionInProgress}
-                onClick={() => updateSearch({ page: currentPage - 1, modelId: selectedModelId, pageSize: currentPageSize })}
+                onClick={() =>
+                  updateSearch({
+                    page: currentPage - 1,
+                    modelId: selectedModelId,
+                    pageSize: currentPageSize,
+                    sortBy: currentSortBy,
+                    sortOrder: currentSortOrder,
+                  })
+                }
                 type="button"
               >
                 Previous
@@ -434,7 +568,15 @@ export function HistoryPage() {
               <button
                 className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={currentPage >= totalPages || historyLoading || actionInProgress}
-                onClick={() => updateSearch({ page: currentPage + 1, modelId: selectedModelId, pageSize: currentPageSize })}
+                onClick={() =>
+                  updateSearch({
+                    page: currentPage + 1,
+                    modelId: selectedModelId,
+                    pageSize: currentPageSize,
+                    sortBy: currentSortBy,
+                    sortOrder: currentSortOrder,
+                  })
+                }
                 type="button"
               >
                 Next
@@ -446,4 +588,3 @@ export function HistoryPage() {
     </AppShell>
   );
 }
-

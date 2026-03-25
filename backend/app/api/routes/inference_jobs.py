@@ -89,6 +89,33 @@ async def create_inference_job(
     )
 
 
+@router.post("/inference/jobs/{job_id}/cancel")
+def cancel_inference_job(
+    job_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    job_service = InferenceJobService()
+    job = job_service.cancel_owned_job(db=db, user=current_user, job_id=job_id)
+
+    if job.status == "running":
+        message = "Cancellation requested."
+    elif job.status == "cancelled":
+        message = "Job cancelled."
+    else:
+        message = "Job is already in a terminal state."
+
+    return success_response(
+        request,
+        {
+            "job_id": job.id,
+            "status": job.status,
+            "message": message,
+        },
+    )
+
+
 @router.get("/inference/jobs/{job_id}")
 def get_inference_job(
     job_id: str,
@@ -201,4 +228,3 @@ def get_inference_job_image(
         )
 
     return FileResponse(path=image_path, filename=image_path.name)
-

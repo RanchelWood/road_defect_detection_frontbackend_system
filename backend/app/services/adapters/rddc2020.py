@@ -1,6 +1,7 @@
-﻿import shutil
+import shutil
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from app.core.config import Settings, get_settings
@@ -70,7 +71,13 @@ class Rddc2020Adapter(InferenceEngineAdapter):
             ),
         ]
 
-    def run(self, input_image_path: str, job_workspace: str, model: ModelPreset) -> AdapterExecutionResult:
+    def run(
+        self,
+        input_image_path: str,
+        job_workspace: str,
+        model: ModelPreset,
+        cancel_requested: Callable[[], bool] | None = None,
+    ) -> AdapterExecutionResult:
         python_exe = Path(self._settings.rddc2020_python_path)
         yolov5_root = Path(self._settings.rddc2020_yolov5_root)
         detect_script = yolov5_root / "detect.py"
@@ -138,25 +145,25 @@ class Rddc2020Adapter(InferenceEngineAdapter):
         wrapper_script = self._build_wrapper_script(argv=argv, csv_path=str(csv_path.resolve()))
 
         started = time.time()
-        try:
-            completed = subprocess.run(
-                [str(python_exe), "-"],
-                input=wrapper_script,
-                text=True,
-                capture_output=True,
-                cwd=str(yolov5_root),
-                timeout=self._settings.rddc2020_timeout_seconds,
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise AdapterExecutionError(
-                "ENGINE_TIMEOUT",
-                f"rddc2020 inference exceeded timeout of {self._settings.rddc2020_timeout_seconds}s",
-            ) from exc
+        process = subprocess.Popen(
+            [str(python_exe), "-"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            cwd=str(yolov5_root),
+        )
+
+        stdout_text, stderr_text = self._communicate_with_cancellation(
+            process=process,
+            wrapper_script=wrapper_script,
+            cancel_requested=cancel_requested,
+        )
 
         duration_ms = int((time.time() - started) * 1000)
 
-        if completed.returncode != 0:
-            error_text = completed.stderr.strip() or completed.stdout.strip()
+        if process.returncode != 0:
+            error_text = stderr_text.strip() or stdout_text.strip()
             if len(error_text) > 1200:
                 error_text = error_text[:1200]
             raise AdapterExecutionError(
@@ -178,6 +185,49 @@ class Rddc2020Adapter(InferenceEngineAdapter):
             detections=detections,
             duration_ms=duration_ms,
         )
+
+    def _communicate_with_cancellation(
+        self,
+        process: subprocess.Popen[str],
+        wrapper_script: str,
+        cancel_requested: Callable[[], bool] | None,
+    ) -> tuple[str, str]:
+        timeout_seconds = self._settings.rddc2020_timeout_seconds
+        started = time.time()
+        input_payload: str | None = wrapper_script
+
+        while True:
+            elapsed = time.time() - started
+            remaining = timeout_seconds - elapsed
+            if remaining <= 0:
+                self._terminate_process(process)
+                raise AdapterExecutionError(
+                    "ENGINE_TIMEOUT",
+                    f"rddc2020 inference exceeded timeout of {timeout_seconds}s",
+                )
+
+            try:
+                return process.communicate(input=input_payload, timeout=min(0.5, remaining))
+            except subprocess.TimeoutExpired:
+                input_payload = None
+                if cancel_requested is not None and cancel_requested():
+                    self._terminate_process(process)
+                    raise AdapterExecutionError("JOB_CANCELLED", "Inference job was cancelled.")
+
+    def _terminate_process(self, process: subprocess.Popen[str]) -> None:
+        if process.poll() is not None:
+            return
+
+        process.terminate()
+        try:
+            process.wait(timeout=2)
+            return
+        except subprocess.TimeoutExpired:
+            process.kill()
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                pass
 
     def _parse_csv(self, csv_path: Path, target_filename: str) -> list[dict[str, object]]:
         if not csv_path.exists():

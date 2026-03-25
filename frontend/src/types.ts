@@ -51,7 +51,7 @@ export type ModelListResponse = {
   items: ModelSummary[];
 };
 
-export type InferenceJobStatus = "queued" | "running" | "succeeded" | "failed";
+export type InferenceJobStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled";
 
 export type InferenceJobSubmission = {
   job_id: string;
@@ -98,6 +98,9 @@ export type InferenceJobDetail = {
   result: InferenceResult | null;
   error: ApiErrorBody | null;
 };
+
+export type HistorySortBy = "time" | "id" | "name";
+export type SortOrder = "asc" | "desc";
 
 export type HistoryItem = {
   job_id: string;

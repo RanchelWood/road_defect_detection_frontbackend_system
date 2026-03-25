@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { createInferenceJob, getInferenceJob, getInferenceJobImage, listModels } from "../api/inference";
+import { cancelInferenceJob, createInferenceJob, getInferenceJob, getInferenceJobImage, listModels } from "../api/inference";
 import { ApiClientError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
 import { AppShell } from "../components/AppShell";
@@ -10,10 +10,12 @@ import { formatElapsed, parseServerTimestamp } from "../utils/time";
 import type { InferenceJobDetail, InferenceJobStatus, InferenceJobSubmission, ModelSummary } from "../types";
 
 const POLL_INTERVAL_MS = 2000;
+const SELECTED_MODEL_STORAGE_KEY = "road_defect_selected_model_id";
 const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
 });
+
 function formatTimestamp(value: string | null) {
   if (!value) {
     return "Not available";
@@ -47,9 +49,16 @@ function formatConfidence(confidence: number | null) {
   return `${(confidence * 100).toFixed(1)}%`;
 }
 
-
 function getJobStatus(jobDetail: InferenceJobDetail | null, submission: InferenceJobSubmission | null) {
   return jobDetail?.status ?? submission?.status ?? null;
+}
+
+function getPersistedModelId(): string {
+  try {
+    return localStorage.getItem(SELECTED_MODEL_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
 }
 
 export function InferencePage() {
@@ -59,7 +68,7 @@ export function InferencePage() {
   const [models, setModels] = useState<ModelSummary[]>([]);
   const [modelsLoading, setModelsLoading] = useState(true);
   const [modelsError, setModelsError] = useState<string | null>(null);
-  const [selectedModelId, setSelectedModelId] = useState("");
+  const [selectedModelId, setSelectedModelId] = useState<string>(() => getPersistedModelId());
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -70,6 +79,7 @@ export function InferencePage() {
   const [annotatedImageUrl, setAnnotatedImageUrl] = useState<string | null>(null);
   const [annotatedImageLoading, setAnnotatedImageLoading] = useState(false);
   const [annotatedImageError, setAnnotatedImageError] = useState<string | null>(null);
+  const [cancellingJob, setCancellingJob] = useState(false);
 
   const previousStatusRef = useRef<InferenceJobStatus | null>(null);
   const finalSyncJobIdRef = useRef<string | null>(null);
@@ -113,6 +123,18 @@ export function InferencePage() {
     };
   }, []);
 
+  useEffect(() => {
+    try {
+      if (selectedModelId) {
+        localStorage.setItem(SELECTED_MODEL_STORAGE_KEY, selectedModelId);
+      } else {
+        localStorage.removeItem(SELECTED_MODEL_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore localStorage access issues.
+    }
+  }, [selectedModelId]);
+
   const loadModels = useCallback(async () => {
     if (!authState) {
       return;
@@ -124,7 +146,16 @@ export function InferencePage() {
     try {
       const response = await listModels(authState.accessToken);
       setModels(response.items);
-      setSelectedModelId((current) => current || response.items[0]?.model_id || "");
+
+      const persistedModelId = getPersistedModelId();
+      setSelectedModelId((current) => {
+        const preferredModelId = current || persistedModelId;
+        if (preferredModelId && response.items.some((model) => model.model_id === preferredModelId)) {
+          return preferredModelId;
+        }
+
+        return response.items[0]?.model_id ?? "";
+      });
     } catch (err) {
       if (err instanceof ApiClientError) {
         setModelsError(err.message);
@@ -182,6 +213,7 @@ export function InferencePage() {
       setJobDetail(null);
       setTrackedSubmission(null);
       setJobError(null);
+      setCancellingJob(false);
       previousStatusRef.current = null;
       finalSyncJobIdRef.current = null;
       return;
@@ -194,6 +226,12 @@ export function InferencePage() {
   }, [jobIdFromRoute, loadJob]);
 
   const currentStatus = getJobStatus(jobDetail, trackedSubmission);
+
+  useEffect(() => {
+    if (currentStatus !== "queued" && currentStatus !== "running") {
+      setCancellingJob(false);
+    }
+  }, [currentStatus]);
 
   useEffect(() => {
     if (!jobIdFromRoute || (currentStatus !== "queued" && currentStatus !== "running")) {
@@ -237,7 +275,7 @@ export function InferencePage() {
 
     const transitionedToTerminal =
       (previousStatus === "queued" || previousStatus === "running") &&
-      (currentStatus === "succeeded" || currentStatus === "failed");
+      (currentStatus === "succeeded" || currentStatus === "failed" || currentStatus === "cancelled");
 
     if (!transitionedToTerminal || finalSyncJobIdRef.current === jobIdFromRoute) {
       return;
@@ -355,6 +393,35 @@ export function InferencePage() {
     }
   }
 
+  async function handleCancelJob() {
+    const activeJobId = jobDetail?.job_id ?? trackedSubmission?.job_id ?? null;
+    if (!authState || !activeJobId || (currentStatus !== "queued" && currentStatus !== "running")) {
+      return;
+    }
+
+    setCancellingJob(true);
+    setJobError(null);
+
+    try {
+      const response = await cancelInferenceJob(authState.accessToken, activeJobId);
+      setTrackedSubmission((current) => ({
+        job_id: response.job_id,
+        status: response.status,
+        model_id: current?.model_id ?? jobDetail?.model_id ?? selectedModelId,
+        engine_id: current?.engine_id ?? jobDetail?.engine_id ?? "unknown-engine",
+      }));
+      await loadJob(activeJobId);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setJobError(err.message);
+      } else {
+        setJobError("Unable to cancel inference job.");
+      }
+    } finally {
+      setCancellingJob(false);
+    }
+  }
+
   function handleResetWorkflow() {
     activeJobIdRef.current = null;
     pollingInFlightRef.current = false;
@@ -363,6 +430,7 @@ export function InferencePage() {
     setJobError(null);
     setTrackedSubmission(null);
     setJobDetail(null);
+    setCancellingJob(false);
     previousStatusRef.current = null;
     finalSyncJobIdRef.current = null;
     setSearchParams({});
@@ -535,15 +603,28 @@ export function InferencePage() {
 
                 {currentStatus === "queued" || currentStatus === "running" ? (
                   <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-                    <p>
-                      Job is currently <span className="font-semibold">{currentStatus}</span>. The page will keep polling
-                      until it reaches a terminal state.
-                    </p>
-                    <p className="mt-2 text-xs font-medium uppercase tracking-wide text-sky-700">Elapsed (live)</p>
-                    <p className="mt-1 text-lg font-semibold text-sky-900">{formatElapsed(elapsedMs)}</p>
-                    <p className="mt-1 text-xs text-sky-700">
-                      Source timestamp: {elapsedAnchorLabel ?? "waiting for server timestamps"}
-                    </p>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p>
+                          Job is currently <span className="font-semibold">{currentStatus}</span>. The page will keep polling
+                          until it reaches a terminal state.
+                        </p>
+                        <p className="mt-2 text-xs font-medium uppercase tracking-wide text-sky-700">Elapsed (live)</p>
+                        <p className="mt-1 text-lg font-semibold text-sky-900">{formatElapsed(elapsedMs)}</p>
+                        <p className="mt-1 text-xs text-sky-700">
+                          Source timestamp: {elapsedAnchorLabel ?? "waiting for server timestamps"}
+                        </p>
+                      </div>
+
+                      <button
+                        className="rounded-md border border-sky-300 px-4 py-2 text-sm font-medium text-sky-900 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+                        disabled={cancellingJob}
+                        onClick={() => void handleCancelJob()}
+                        type="button"
+                      >
+                        {cancellingJob ? "Cancelling..." : "Cancel job"}
+                      </button>
+                    </div>
                   </div>
                 ) : null}
 
@@ -551,6 +632,13 @@ export function InferencePage() {
                   <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                     <p className="font-semibold">{jobDetail?.error?.code ?? "ENGINE_EXECUTION_FAILED"}</p>
                     <p className="mt-1">{jobDetail?.error?.message ?? "Inference job failed."}</p>
+                  </div>
+                ) : null}
+
+                {currentStatus === "cancelled" ? (
+                  <div className="rounded-xl border border-slate-300 bg-slate-100 px-4 py-3 text-sm text-slate-800">
+                    <p className="font-semibold">Job cancelled</p>
+                    <p className="mt-1">Inference processing was cancelled before completion.</p>
                   </div>
                 ) : null}
 
@@ -671,4 +759,3 @@ export function InferencePage() {
     </AppShell>
   );
 }
-

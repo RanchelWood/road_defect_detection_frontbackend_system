@@ -154,6 +154,26 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
         '404':
           $ref: '#/components/responses/ErrorResponse'
+  /inference/jobs/{job_id}/cancel:
+    post:
+      summary: Cancel an inference job for the owning user
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Job cancellation accepted or completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessEnvelopeJobCancel'
+        '401':
+          $ref: '#/components/responses/ErrorResponse'
+        '404':
+          $ref: '#/components/responses/ErrorResponse'
   /inference/jobs/{job_id}/image/{kind}:
     get:
       summary: Stream an inference job image for the owning user
@@ -204,6 +224,18 @@ paths:
           in: query
           schema:
             type: string
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            enum: [time, id, name]
+            default: time
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
       responses:
         '200':
           description: History list
@@ -492,7 +524,7 @@ components:
           type: string
         status:
           type: string
-          enum: [queued, running, succeeded, failed]
+          enum: [queued, running, succeeded, failed, cancelled]
         model_id:
           type: string
         engine_id:
@@ -535,7 +567,7 @@ components:
           type: string
         status:
           type: string
-          enum: [queued, running, succeeded, failed]
+          enum: [queued, running, succeeded, failed, cancelled]
         timestamp:
           type: string
           format: date-time
@@ -656,6 +688,34 @@ components:
               type: integer
         meta:
           $ref: '#/components/schemas/Meta'
+    JobCancelPayload:
+      type: object
+      required:
+        - job_id
+        - status
+        - message
+      properties:
+        job_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, succeeded, failed, cancelled]
+        message:
+          type: string
+    SuccessEnvelopeJobCancel:
+      type: object
+      required:
+        - success
+        - data
+        - meta
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/JobCancelPayload'
+        meta:
+          $ref: '#/components/schemas/Meta'
     HistoryDeletedPayload:
       type: object
       required:
@@ -723,4 +783,3 @@ components:
               type: string
         meta:
           $ref: '#/components/schemas/Meta'
-

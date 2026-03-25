@@ -4,7 +4,7 @@ from typing import Literal
 from pydantic import BaseModel
 
 
-JobStatus = Literal["queued", "running", "succeeded", "failed"]
+JobStatus = Literal["queued", "running", "succeeded", "failed", "cancelled"]
 
 
 class ModelPresetPayload(BaseModel):
@@ -22,6 +22,12 @@ class InferenceJobCreatedPayload(BaseModel):
     status: JobStatus
     model_id: str
     engine_id: str
+
+
+class InferenceJobCancelPayload(BaseModel):
+    job_id: str
+    status: JobStatus
+    message: str
 
 
 class DetectionBBoxPayload(BaseModel):

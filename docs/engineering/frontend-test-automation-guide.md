@@ -95,6 +95,12 @@ Command set by scope:
   - JSON request behavior
   - 401 unauthorized callback behavior
   - blob endpoint error-envelope handling
+- `src/pages/HistoryPage.test.tsx`
+  - page-size + sorting query behavior
+  - pagination fallback after delete
+- `src/pages/InferencePage.test.tsx`
+  - model selection persistence/fallback after refresh
+  - cancel action flow rendering
 
 ### Playwright Smoke
 
@@ -133,6 +139,17 @@ Fix:
 ```powershell
 cd frontend
 npm run test:e2e:install
+```
+
+### Vitest worker startup timeout (`[vitest-pool-runner]`)
+
+Cause: thread-pool worker startup instability on this Windows environment.
+
+Fix: keep `frontend/vitest.config.ts` on `pool: "forks"`.
+
+```powershell
+cd frontend
+npm run test:unit
 ```
 
 ### Vitest environment/dependency startup errors

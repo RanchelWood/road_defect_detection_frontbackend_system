@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
@@ -16,6 +18,8 @@ def get_history(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     model_id: str | None = Query(default=None),
+    sort_by: Literal["time", "id", "name"] = Query(default="time"),
+    sort_order: Literal["asc", "desc"] = Query(default="desc"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -26,6 +30,8 @@ def get_history(
         page=page,
         page_size=page_size,
         model_id=model_id,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
     return success_response(request, payload)
 
@@ -63,4 +69,3 @@ def clear_history(
             "deleted_count": deleted_count,
         },
     )
-

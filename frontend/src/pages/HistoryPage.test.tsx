@@ -88,35 +88,46 @@ beforeEach(() => {
 });
 
 describe("HistoryPage", () => {
-  it("uses default page size 10 and resets to page 1 when page size changes", async () => {
-    mocks.getHistory.mockImplementation(async (_token: string, query: { page?: number; pageSize?: number }) => {
-      const page = query.page ?? 1;
-      const pageSize = query.pageSize ?? 10;
+  it("uses default page size/sort and resets to page 1 when page size changes", async () => {
+    mocks.getHistory.mockImplementation(
+      async (
+        _token: string,
+        query: { page?: number; pageSize?: number; sortBy?: string; sortOrder?: string },
+      ) => {
+        const page = query.page ?? 1;
+        const pageSize = query.pageSize ?? 10;
 
-      return makeHistoryResponse({
-        page,
-        page_size: pageSize,
-        total: 21,
-        items: [
-          {
-            job_id: `job-page-${page}`,
-            model_id: "rddc2020-imsc-last95",
-            engine_id: "rddc2020-cli",
-            status: "succeeded",
-            timestamp: "2026-03-24T00:00:00Z",
-            defect_count: 1,
-            max_confidence: 0.8,
-          },
-        ],
-      });
-    });
+        return makeHistoryResponse({
+          page,
+          page_size: pageSize,
+          total: 21,
+          items: [
+            {
+              job_id: `job-page-${page}`,
+              model_id: "rddc2020-imsc-last95",
+              engine_id: "rddc2020-cli",
+              status: "succeeded",
+              timestamp: "2026-03-24T00:00:00Z",
+              defect_count: 1,
+              max_confidence: 0.8,
+            },
+          ],
+        });
+      },
+    );
 
     renderHistoryPage("/history?page=3");
 
     await waitFor(() => {
       expect(mocks.getHistory.mock.calls).toContainEqual([
         "token-123",
-        { page: 3, pageSize: 10, modelId: undefined },
+        {
+          page: 3,
+          pageSize: 10,
+          modelId: undefined,
+          sortBy: "time",
+          sortOrder: "desc",
+        },
       ]);
     });
 
@@ -125,7 +136,87 @@ describe("HistoryPage", () => {
     await waitFor(() => {
       expect(mocks.getHistory.mock.calls).toContainEqual([
         "token-123",
-        { page: 1, pageSize: 50, modelId: undefined },
+        {
+          page: 1,
+          pageSize: 50,
+          modelId: undefined,
+          sortBy: "time",
+          sortOrder: "desc",
+        },
+      ]);
+    });
+  });
+
+  it("updates sort controls and keeps query state in API calls", async () => {
+    mocks.getHistory.mockImplementation(
+      async (
+        _token: string,
+        query: { page?: number; pageSize?: number; sortBy?: string; sortOrder?: string },
+      ) => {
+        const page = query.page ?? 1;
+        const pageSize = query.pageSize ?? 10;
+
+        return makeHistoryResponse({
+          page,
+          page_size: pageSize,
+          total: 2,
+          items: [
+            {
+              job_id: `job-page-${page}`,
+              model_id: "rddc2020-imsc-last95",
+              engine_id: "rddc2020-cli",
+              status: "succeeded",
+              timestamp: "2026-03-24T00:00:00Z",
+              defect_count: 1,
+              max_confidence: 0.8,
+            },
+          ],
+        });
+      },
+    );
+
+    renderHistoryPage("/history?page=2");
+
+    await waitFor(() => {
+      expect(mocks.getHistory.mock.calls).toContainEqual([
+        "token-123",
+        {
+          page: 2,
+          pageSize: 10,
+          modelId: undefined,
+          sortBy: "time",
+          sortOrder: "desc",
+        },
+      ]);
+    });
+
+    fireEvent.change(screen.getByLabelText("Sort by"), { target: { value: "id" } });
+
+    await waitFor(() => {
+      expect(mocks.getHistory.mock.calls).toContainEqual([
+        "token-123",
+        {
+          page: 1,
+          pageSize: 10,
+          modelId: undefined,
+          sortBy: "id",
+          sortOrder: "desc",
+        },
+      ]);
+    });
+
+    fireEvent.change(screen.getByLabelText("Order"), { target: { value: "asc" } });
+
+    await waitFor(() => {
+      expect(mocks.getHistory.mock.calls).toContainEqual([
+        "token-123",
+        {
+          page: 1,
+          pageSize: 10,
+          modelId: undefined,
+          sortBy: "id",
+          sortOrder: "asc",
+        },
       ]);
     });
   });
@@ -142,55 +233,60 @@ describe("HistoryPage", () => {
       };
     });
 
-    mocks.getHistory.mockImplementation(async (_token: string, query: { page?: number; pageSize?: number }) => {
-      const page = query.page ?? 1;
-      const pageSize = query.pageSize ?? 10;
+    mocks.getHistory.mockImplementation(
+      async (
+        _token: string,
+        query: { page?: number; pageSize?: number; sortBy?: string; sortOrder?: string },
+      ) => {
+        const page = query.page ?? 1;
+        const pageSize = query.pageSize ?? 10;
 
-      if (page === 2 && !deleted) {
+        if (page === 2 && !deleted) {
+          return makeHistoryResponse({
+            page: 2,
+            page_size: pageSize,
+            total: 11,
+            items: [
+              {
+                job_id: "job-delete",
+                model_id: "rddc2020-imsc-last95",
+                engine_id: "rddc2020-cli",
+                status: "succeeded",
+                timestamp: "2026-03-24T00:00:00Z",
+                defect_count: 2,
+                max_confidence: 0.7,
+              },
+            ],
+          });
+        }
+
+        if (page === 2 && deleted) {
+          return makeHistoryResponse({
+            page: 2,
+            page_size: pageSize,
+            total: 10,
+            items: [],
+          });
+        }
+
         return makeHistoryResponse({
-          page: 2,
+          page: 1,
           page_size: pageSize,
-          total: 11,
+          total: 10,
           items: [
             {
-              job_id: "job-delete",
+              job_id: "job-remaining",
               model_id: "rddc2020-imsc-last95",
               engine_id: "rddc2020-cli",
               status: "succeeded",
               timestamp: "2026-03-24T00:00:00Z",
-              defect_count: 2,
-              max_confidence: 0.7,
+              defect_count: 1,
+              max_confidence: 0.6,
             },
           ],
         });
-      }
-
-      if (page === 2 && deleted) {
-        return makeHistoryResponse({
-          page: 2,
-          page_size: pageSize,
-          total: 10,
-          items: [],
-        });
-      }
-
-      return makeHistoryResponse({
-        page: 1,
-        page_size: pageSize,
-        total: 10,
-        items: [
-          {
-            job_id: "job-remaining",
-            model_id: "rddc2020-imsc-last95",
-            engine_id: "rddc2020-cli",
-            status: "succeeded",
-            timestamp: "2026-03-24T00:00:00Z",
-            defect_count: 1,
-            max_confidence: 0.6,
-          },
-        ],
-      });
-    });
+      },
+    );
 
     renderHistoryPage("/history?page=2");
 
@@ -207,13 +303,24 @@ describe("HistoryPage", () => {
     await waitFor(() => {
       expect(mocks.getHistory.mock.calls).toContainEqual([
         "token-123",
-        { page: 2, pageSize: 10, modelId: undefined },
+        {
+          page: 2,
+          pageSize: 10,
+          modelId: undefined,
+          sortBy: "time",
+          sortOrder: "desc",
+        },
       ]);
       expect(mocks.getHistory.mock.calls).toContainEqual([
         "token-123",
-        { page: 1, pageSize: 10, modelId: undefined },
+        {
+          page: 1,
+          pageSize: 10,
+          modelId: undefined,
+          sortBy: "time",
+          sortOrder: "desc",
+        },
       ]);
     });
   });
 });
-

@@ -1,4 +1,5 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -67,6 +68,80 @@ def test_create_inference_job_validates_model_id(client):
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "INVALID_MODEL"
+
+
+def test_owner_can_cancel_queued_job(client, db_session):
+    headers = _register_and_auth(client, email=f"cancel-owner-{uuid4()}@example.com")
+
+    create_response = client.post(
+        "/inference/jobs",
+        headers=headers,
+        data={"model_id": "rddc2020-imsc-last95"},
+        files={"image": ("road.png", b"fake-image-data", "image/png")},
+    )
+    job_id = create_response.json()["data"]["job_id"]
+
+    cancel_response = client.post(f"/inference/jobs/{job_id}/cancel", headers=headers)
+
+    assert cancel_response.status_code == 200
+    cancel_payload = cancel_response.json()["data"]
+    assert cancel_payload["job_id"] == job_id
+    assert cancel_payload["status"] == "cancelled"
+
+    job = db_session.query(InferenceJob).filter(InferenceJob.id == job_id).first()
+    assert job is not None
+    assert job.status == "cancelled"
+    assert job.error_code == "JOB_CANCELLED"
+
+
+def test_non_owner_cannot_cancel_job(client):
+    owner_headers = _register_and_auth(client, email=f"cancel-owner-{uuid4()}@example.com")
+    other_headers = _register_and_auth(client, email=f"cancel-other-{uuid4()}@example.com")
+
+    create_response = client.post(
+        "/inference/jobs",
+        headers=owner_headers,
+        data={"model_id": "rddc2020-imsc-last95"},
+        files={"image": ("road.png", b"fake-image-data", "image/png")},
+    )
+    job_id = create_response.json()["data"]["job_id"]
+
+    cancel_response = client.post(f"/inference/jobs/{job_id}/cancel", headers=other_headers)
+
+    assert cancel_response.status_code == 404
+    assert cancel_response.json()["error"]["code"] == "NOT_FOUND"
+
+
+def test_cancel_running_job_requests_cancellation(client, db_session):
+    headers = _register_and_auth(client, email=f"cancel-running-{uuid4()}@example.com")
+
+    create_response = client.post(
+        "/inference/jobs",
+        headers=headers,
+        data={"model_id": "rddc2020-imsc-last95"},
+        files={"image": ("road.png", b"fake-image-data", "image/png")},
+    )
+    job_id = create_response.json()["data"]["job_id"]
+
+    job = db_session.query(InferenceJob).filter(InferenceJob.id == job_id).first()
+    assert job is not None
+    job.status = "running"
+    job.started_at = datetime.now(UTC)
+    db_session.add(job)
+    db_session.commit()
+
+    cancel_response = client.post(f"/inference/jobs/{job_id}/cancel", headers=headers)
+
+    assert cancel_response.status_code == 200
+    payload = cancel_response.json()["data"]
+    assert payload["status"] == "running"
+    assert payload["message"] == "Cancellation requested."
+
+    db_session.expire_all()
+    refreshed = db_session.query(InferenceJob).filter(InferenceJob.id == job_id).first()
+    assert refreshed is not None
+    assert refreshed.status == "running"
+    assert refreshed.error_code == "CANCEL_REQUESTED"
 
 
 def test_user_can_fetch_own_job_only(client):
@@ -249,4 +324,3 @@ def test_unsupported_image_kind_returns_clear_error(client):
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "INVALID_IMAGE_KIND"
-
