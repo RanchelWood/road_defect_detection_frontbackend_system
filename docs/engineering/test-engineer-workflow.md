@@ -7,12 +7,12 @@ This document defines how the Team Leader, Frontend Engineer, Backend Engineer, 
 - Team Leader
   - Frontend Engineer (write and fix UI/frontend behavior)
   - Backend Engineer (write and fix backend/API/runtime behavior)
-  - Test Engineer (discover, reproduce, triage input, and verify fixes)
+  - Test Engineer (run tests, discover defects, reproduce, and verify fixes)
   - Junior guidance support (Team Leader explains project and fixes in simple terms)
 
 ## Test Engineer Responsibilities
 
-The Test Engineer is responsible for testing from a user perspective and submitting reproducible bug reports.
+The Test Engineer is responsible for running tests from a user perspective and submitting reproducible bug reports with execution evidence.
 
 Primary scope:
 
@@ -29,15 +29,18 @@ Primary scope:
   - deep-link and navigation behavior
 - Verify user-reported issues.
 - Perform exploratory checks to find new issues.
+- Execute required automated suites for each report/retest scope.
 - Classify issue area as one of:
   - `frontend`
   - `backend`
   - `integration`
   - `unclear`
 
-Guardrail:
+Guardrails:
 
 - Do not make speculative code changes unless explicitly assigned implementation work.
+- Team Leader does not run routine test suites for bug closure.
+- Team Leader verifies Test Engineer evidence quality and closes only after passing retest evidence.
 
 ## Automation Augmentation (Implemented)
 
@@ -54,6 +57,33 @@ Test Engineer expected usage:
 - Attach Playwright traces/videos/screenshots when available.
 - Reference related Vitest tests (`npm run test:unit`) for frontend logic regressions.
 - Use manual + automated cross-check for `blocker` and `high` severity defects.
+
+## Mandatory Test Execution Contract
+
+For each bug report and each retest cycle, the Test Engineer must execute and report commands relevant to the affected area.
+
+Baseline command matrix:
+
+- Frontend-only bug:
+  - `cd frontend && npm run test:unit`
+  - `cd frontend && npm run test:e2e:smoke` when auth/navigation/inference/history UI is affected
+- Backend-only bug:
+  - `cd backend && .\.venv\Scripts\python.exe -m pytest tests`
+- Integration or unclear bug:
+  - `cd backend && .\.venv\Scripts\python.exe -m pytest tests`
+  - `cd frontend && npm run test:unit`
+  - `cd frontend && npm run test:e2e:smoke`
+
+Minimum evidence block (required):
+
+- Executed Commands:
+  - exact command lines
+- Result Summary:
+  - passed/failed counts and failing test IDs
+- Artifact Paths:
+  - Playwright trace/video/screenshot paths when generated
+- Outcome:
+  - `pass` or `fail` recommendation for closure
 
 ## Bug Lifecycle
 
@@ -73,7 +103,7 @@ Test Engineer expected usage:
 3. Team Leader assigns bug to Frontend Engineer or Backend Engineer (`in progress`).
 4. Engineer submits fix with evidence (`fixed`).
 5. Team Leader sends fix to Test Engineer with retest request (`needs retest`).
-6. Test Engineer verifies:
+6. Test Engineer verifies by executing required test commands and manual checks:
    - Pass: close issue (`closed`).
    - Fail: reopen with new evidence (`triaged`).
 
@@ -86,7 +116,7 @@ Test Engineer expected usage:
 
 ### Closure Rule
 
-- No bug is closed without Test Engineer verification evidence.
+- No bug is closed without Test Engineer verification evidence that includes executed commands and results.
 
 ## Standard Templates
 
@@ -107,6 +137,8 @@ Expected Result:
 Actual Result:
 Evidence / Notes:
 - Manual evidence:
+- Executed commands:
+- Command outputs summary:
 - Playwright evidence (if available): trace/video/screenshot path
 - Related Vitest coverage (if available): test file/name
 Suspected Owner: Frontend Engineer | Backend Engineer | Team Leader review
@@ -156,6 +188,8 @@ Pass Criteria:
 
 Retest Result:
 - Outcome: pass | fail
+- Executed Commands:
+- Command Output Summary:
 - Manual Evidence:
 - Playwright Evidence (if available):
 - Related Vitest Evidence (if available):
@@ -175,4 +209,3 @@ Verified At:
 - Require bug ID in every engineer update.
 - Prefer small bug-fix batches and immediate retest handoff.
 - Keep reports concrete and reproducible; avoid vague statements.
-

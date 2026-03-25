@@ -12,10 +12,10 @@ This workflow is beginner-friendly and aligned with external engine integration.
 
 ## Team Roles and Ownership
 
-- Team Leader: triage owner, delegation owner, closure owner, and junior developer guide.
+- Team Leader: triage owner, delegation owner, closure owner, junior developer guide, and **test-evidence reviewer**.
 - Frontend Engineer: GUI, frontend state, navigation, and API integration handling in `frontend/`.
 - Backend Engineer: API behavior, validation, persistence, and runtime integration in `backend/`.
-- Test Engineer: bug discovery, reproducible reporting, retest verification, and smoke regression evidence.
+- Test Engineer: **executes required test suites**, performs exploratory/manual validation, and submits reproducible evidence.
 
 ## Environment Setup (Windows-Friendly)
 
@@ -63,7 +63,7 @@ How this optimizes workflow:
 - Faster bug isolation: Vitest catches frontend logic/state failures before browser-level testing.
 - Reproducible evidence: Playwright provides trace/video/screenshot artifacts for triage and retest.
 - Better ownership routing: unit failures are usually frontend-owned; smoke failures often indicate frontend/backend/integration ownership.
-- Safer closure: Test Engineer can verify fixes with both targeted manual steps and repeatable automation.
+- Safer closure: verification is evidence-based, not verbal confirmation.
 
 ## Test Strategy by Layer
 
@@ -79,6 +79,19 @@ How this optimizes workflow:
   - protected route redirects
   - inference submit + polling + terminal rendering
 - Test Engineer smoke checks for release candidates remain mandatory even with automation.
+
+## Test Execution Ownership (Mandatory)
+
+- Test Engineer executes required test commands for each feature/bug batch.
+- Team Leader does not perform routine test execution; Team Leader verifies evidence quality and closure readiness.
+- Engineers may run local checks during implementation, but gate signoff evidence must come from Test Engineer thread.
+
+Required evidence from Test Engineer:
+
+- Exact command lines executed.
+- Pass/fail summary and failing test IDs when applicable.
+- Relevant artifacts (Playwright traces/videos/screenshots).
+- Retest decision: `close` or `re-triage`.
 
 ## Bug Lifecycle and Verification Gate
 
@@ -97,13 +110,13 @@ Required flow:
 2. Team Leader triages ownership and severity, then marks `triaged`.
 3. Assigned engineer works in `in progress` and submits fix as `fixed`.
 4. Team Leader sends issue to Test Engineer and marks `needs retest`.
-5. Test Engineer verifies:
+5. Test Engineer executes required suites and manual checks, then reports evidence:
    - pass -> `closed`
    - fail -> reopen to `triaged` with retest evidence.
 
 Closure rule:
 
-- No bug is closed without Test Engineer verification evidence.
+- No issue is closed without Test Engineer execution evidence.
 
 Ownership rule:
 
@@ -122,7 +135,7 @@ Current required gates (active now):
 - Frontend build (`npm run build`) passes.
 - API contract changes reflected in docs.
 - ExecPlan progress and Decision Log updated.
-- Every bug fix includes bug ID, owner note, and Test Engineer retest evidence.
+- Every bug/feature closure includes Test Engineer executed-command evidence.
 
 ## Non-Functional Baselines
 
@@ -139,4 +152,3 @@ Current required gates (active now):
 - Server-side validation for `model_id` and job ownership.
 - External command execution strictly from allowlisted model presets and paths.
 - Secrets through env vars only.
-

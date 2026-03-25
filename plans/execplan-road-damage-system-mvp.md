@@ -27,6 +27,7 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-23 06:10Z) Milestone 3 QA workflow preparation completed: adopted planned frontend automation stack targets, updated engineering workflow docs, and briefed Test Engineer thread expectations.
 - [x] (2026-03-23 09:20Z) Milestone 3A implementation completed: frontend Vitest + Playwright automation was wired (configs/scripts/tests), environment compatibility was stabilized (jsdom pin), and quality gates were validated (`test:unit`, `test:e2e:smoke`, `npm run build`).
 - [x] (2026-03-24 08:40Z) Milestone 3B history-management UX/API completed: added user-scoped delete-one and clear-all history operations, /history page-size selector (10/20/50), frontend/unit/backend test coverage, and passing validation gates.
+- [x] (2026-03-25 03:20Z) Workflow ownership optimized: Test Engineer now executes required test suites and submits command/artifact evidence; Team Leader is evidence supervisor and closure gate keeper.
 - [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [ ] Milestone 4: Phase 2 real-time streaming design/implementation after stable image-job flow.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
@@ -114,6 +115,10 @@ After this work, a beginner should be able to run a web system where a user can 
   Rationale: Meets user-requested data management features while preserving auth safety and predictable pagination UX.
   Date/Author: 2026-03-24 / Codex
 
+- Decision: Test execution ownership is delegated to Test Engineer, while Team Leader supervises evidence quality and closure readiness.
+  Rationale: Prevents report-only QA behavior and enforces reproducible verification before closure.
+  Date/Author: 2026-03-25 / Codex
+
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -139,6 +144,8 @@ Bugfix stabilization outcome (2026-03-23): reopened defects BUG-20260322-001/002
 QA workflow implementation outcome (2026-03-23): frontend automation is now active with Vitest (unit) and Playwright (smoke E2E), and was validated in this repo with passing `npm run test:unit`, `npm run test:e2e:smoke`, and `npm run build` checks.
 
 History management outcome (2026-03-24): users can now delete one history record or clear all their own history, and /history supports explicit page-size selection (10/20/50) with safe pagination reset and refresh behavior after mutations.
+
+Workflow ownership outcome (2026-03-25): QA process now requires Test Engineer executed-command evidence for each bug/retest cycle; Team Leader validates evidence quality and no longer performs routine closure tests.
 
 ## Context and Orientation
 
@@ -262,4 +269,4 @@ Plan change note (2026-03-23 / Codex): Applied direct regression stabilization f
 Plan change note (2026-03-23 / Codex): Updated QA governance docs for planned Vitest + Playwright adoption and briefed Test Engineer workflow expectations.
 Plan change note (2026-03-23 / Codex): Implemented frontend testing workflow end-to-end (Vitest/Playwright config + tests + scripts), validated runtime compatibility, and updated documentation + usage guidance.
 Plan change note (2026-03-24 / Codex): Implemented history feature batch (delete-one, clear-all, page-size selector), integrated backend/frontend tests, and updated API/UI contracts + ExecPlan tracking.
-
+Plan change note (2026-03-25 / Codex): Updated workflow governance so Test Engineer executes Vitest/Playwright/pytest evidence runs and Team Leader performs supervision-only closure gating.

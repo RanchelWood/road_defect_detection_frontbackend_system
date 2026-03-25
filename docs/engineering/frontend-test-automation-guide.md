@@ -1,6 +1,6 @@
 # Frontend Test Automation Guide (Beginner-Friendly)
 
-This guide explains how to use the new Vitest + Playwright workflow in this repo.
+This guide explains how to use the Vitest + Playwright workflow in this repo.
 
 ## Why We Added This
 
@@ -46,13 +46,43 @@ cd frontend
 npm run build
 ```
 
-## Recommended Developer Workflow
+## Operational Role Split (Important)
 
-1. Make your frontend change.
+- Frontend Engineer:
+  - runs local checks while implementing (`test:unit`, and `test:e2e:smoke` when relevant)
+  - fixes failing tests in owned scope
+- Test Engineer:
+  - runs verification suites for bug reports and retests
+  - provides executed-command evidence and artifacts
+  - is the gate source for closure evidence
+- Team Leader:
+  - does not run routine tests for closure
+  - supervises evidence quality, triages ownership, and decides close/re-triage
+
+## Recommended Frontend Engineer Workflow
+
+1. Make frontend change.
 2. Run `npm run test:unit`.
-3. If your change touches auth/navigation/inference/history flow, run `npm run test:e2e:smoke`.
+3. If change touches auth/navigation/inference/history flow, run `npm run test:e2e:smoke`.
 4. Run `npm run build` before handoff.
-5. If any command fails, fix and rerun before reporting done.
+5. If any command fails, fix and rerun before handoff.
+
+## Required Test Engineer Verification Workflow
+
+For each bug/retest cycle:
+
+1. Run required command set for scope.
+2. Capture command outputs and failing test IDs (if any).
+3. Attach Playwright evidence when generated.
+4. Report pass/fail recommendation using the retest template.
+
+Command set by scope:
+
+- Frontend-only:
+  - `npm run test:unit`
+  - `npm run test:e2e:smoke` for auth/navigation/inference/history impact
+- Integration/unclear:
+  - run both frontend commands above and coordinate with backend pytest evidence in test workflow doc
 
 ## What Is Covered Right Now
 
@@ -79,7 +109,7 @@ npm run build
 - Smoke test fail:
   - could be frontend, backend, or integration.
   - Team Leader triages and assigns owner.
-- Bug is not closed until Test Engineer retest passes.
+- Bug is not closed until Test Engineer retest passes with executed-command evidence.
 
 ## Evidence to Attach for Bug Reports
 
@@ -116,4 +146,3 @@ cd frontend
 npm install
 npm run test:unit
 ```
-
