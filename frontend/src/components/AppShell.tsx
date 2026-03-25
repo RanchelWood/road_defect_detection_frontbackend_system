@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 
 import { logout } from "../api/auth";
 import { useAuth } from "../auth/AuthContext";
+import { ThemeToggle } from "./ThemeToggle";
 
 type AppShellProps = {
   title: string;
@@ -77,14 +78,17 @@ export function AppShell({ title, description, children }: AppShellProps) {
               </NavLink>
             </nav>
 
-            <button
-              className="rounded-md bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-              disabled={loggingOut}
-              onClick={handleLogout}
-              type="button"
-            >
-              {loggingOut ? "Logging out..." : "Logout"}
-            </button>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <button
+                className="rounded-md bg-slate-700 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={loggingOut}
+                onClick={handleLogout}
+                type="button"
+              >
+                {loggingOut ? "Logging out..." : "Logout"}
+              </button>
+            </div>
           </div>
 
           {logoutError ? (

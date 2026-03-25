@@ -207,6 +207,15 @@ export function HistoryPage() {
     return Math.max(1, Math.ceil(history.total / history.page_size));
   }, [history]);
 
+  const modelNameById = useMemo(() => {
+    const lookup = new Map<string, string>();
+    for (const model of models) {
+      lookup.set(model.model_id, model.display_name);
+    }
+
+    return lookup;
+  }, [models]);
+
   const refreshAfterMutation = useCallback(async () => {
     const response = await loadHistoryData();
     if (!response) {
@@ -359,7 +368,14 @@ export function HistoryPage() {
 
     return (
       <div className="grid gap-4">
-        {items.map((item) => (
+        {items.map((item) => {
+          const pictureName =
+            typeof item.original_filename === "string" && item.original_filename.trim().length > 0
+              ? item.original_filename
+              : "Unknown image";
+          const selectedModelName = modelNameById.get(item.model_id) ?? item.model_id;
+
+          return (
           <article className="rounded-2xl bg-white p-5 shadow sm:p-6" key={item.job_id}>
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-3">
@@ -368,8 +384,9 @@ export function HistoryPage() {
                   <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{item.engine_id}</span>
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-900">{item.model_id}</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">{pictureName}</h2>
                   <p className="mt-1 break-all text-sm text-slate-500">Job ID: {item.job_id}</p>
+                  <p className="mt-1 text-sm text-slate-600">Model: {selectedModelName}</p>
                 </div>
               </div>
 
@@ -412,7 +429,8 @@ export function HistoryPage() {
               </div>
             </div>
           </article>
-        ))}
+          );
+        })}
       </div>
     );
   }

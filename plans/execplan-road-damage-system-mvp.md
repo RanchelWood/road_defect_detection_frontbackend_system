@@ -29,6 +29,7 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-24 08:40Z) Milestone 3B history-management UX/API completed: added user-scoped delete-one and clear-all history operations, /history page-size selector (10/20/50), frontend/unit/backend test coverage, and passing validation gates.
 - [x] (2026-03-25 03:20Z) Workflow ownership optimized: Test Engineer now executes required test suites and submits command/artifact evidence; Team Leader is evidence supervisor and closure gate keeper.
 - [x] (2026-03-25 07:40Z) Feature batch completed: inference model selection now persists across refresh, users can cancel queued/running jobs, and history supports time/id/name sorting with asc/desc order.
+- [x] (2026-03-25 09:10Z) UX enhancement batch completed: history cards now show picture title + model name line, and GUI now supports persistent light/dark theme switching.
 - [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [ ] Milestone 4: Phase 2 real-time streaming design/implementation after stable image-job flow.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
@@ -127,6 +128,14 @@ After this work, a beginner should be able to run a web system where a user can 
 - Decision: History sorting contract now includes `sort_by=time|id|name` and `sort_order=asc|desc`, and inference model selection persists via frontend local storage.
   Rationale: Delivers requested usability controls (refresh persistence + flexible history ordering) while keeping API/UI state URL-driven and testable.
   Date/Author: 2026-03-25 / Codex
+
+- Decision: History list items now expose `original_filename` and frontend cards prioritize it as the display title, while model name text is resolved from model registry metadata with `model_id` fallback.
+  Rationale: Aligns card content with user mental model (image-first context + explicit chosen model) without breaking history API compatibility.
+  Date/Author: 2026-03-25 / Codex
+
+- Decision: Theme system uses persisted class-based light/dark switching at app root with reusable toggle controls in both auth pages and authenticated shell.
+  Rationale: Delivers requested dark theme UX with minimal refactor and stable cross-page behavior.
+  Date/Author: 2026-03-25 / Codex
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -158,6 +167,10 @@ Workflow ownership outcome (2026-03-25): QA process now requires Test Engineer e
 Feature batch outcome (2026-03-25): inference UI now restores the previously selected model after manual refresh, job cards expose cancellation for queued/running states, and history UI/API support sorting by time/id/name with asc/desc ordering.
 
 Verification outcome (2026-03-25): Test Engineer gate passed after retest (`backend pytest: 32 passed`, `frontend unit: 16 passed`, `frontend e2e smoke: 3 passed`) and issue batch was closed.
+
+UX theme/content outcome (2026-03-25): history cards now present picture filename as primary title with model name context, and users can toggle/persist light or dark theme across login/register/dashboard/inference/history pages.
+
+Verification outcome (2026-03-25): Test Engineer retest passed for this UX batch (`backend pytest: 32 passed`, `frontend unit: 19 passed`, `frontend e2e smoke: 3 passed`).
 
 ## Context and Orientation
 
@@ -283,3 +296,4 @@ Plan change note (2026-03-23 / Codex): Implemented frontend testing workflow end
 Plan change note (2026-03-24 / Codex): Implemented history feature batch (delete-one, clear-all, page-size selector), integrated backend/frontend tests, and updated API/UI contracts + ExecPlan tracking.
 Plan change note (2026-03-25 / Codex): Updated workflow governance so Test Engineer executes Vitest/Playwright/pytest evidence runs and Team Leader performs supervision-only closure gating.
 Plan change note (2026-03-25 / Codex): Implemented user-requested feature batch (model persistence, job cancellation, history sorting), triaged post-implementation test blockers to FE/BE owners, and closed with Test Engineer retest evidence.
+Plan change note (2026-03-25 / Codex): Implemented history card content update (picture title + model name) and persistent light/dark theme toggle, then closed with Test Engineer verification evidence.

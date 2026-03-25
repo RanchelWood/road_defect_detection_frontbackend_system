@@ -1,10 +1,17 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
   color: #0f172a;
   background: #f8fafc;
+}
+
+:root.dark {
+  color-scheme: dark;
+  color: #e2e8f0;
+  background: #020617;
 }
 
 body {
@@ -12,10 +19,91 @@ body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   background: radial-gradient(circle at top left, #edf7ef 0%, #f8fafc 40%, #f8fafc 100%);
   min-height: 100vh;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+:root.dark body {
+  background: radial-gradient(circle at top left, #0f172a 0%, #020617 42%, #020617 100%);
 }
 
 input,
 button,
-select {
+select,
+textarea {
   font: inherit;
+}
+
+:root.dark .bg-white {
+  background-color: #0f172a;
+}
+
+:root.dark .bg-slate-50 {
+  background-color: #111827;
+}
+
+:root.dark .bg-slate-100 {
+  background-color: #1f2937;
+}
+
+:root.dark .text-slate-900 {
+  color: #f8fafc;
+}
+
+:root.dark .text-slate-800 {
+  color: #e2e8f0;
+}
+
+:root.dark .text-slate-700 {
+  color: #cbd5e1;
+}
+
+:root.dark .text-slate-600 {
+  color: #94a3b8;
+}
+
+:root.dark .text-slate-500 {
+  color: #94a3b8;
+}
+
+:root.dark .border-slate-100 {
+  border-color: #1e293b;
+}
+
+:root.dark .border-slate-200 {
+  border-color: #334155;
+}
+
+:root.dark .border-slate-300 {
+  border-color: #475569;
+}
+
+:root.dark .hover\:bg-slate-50:hover {
+  background-color: #1f2937;
+}
+
+:root.dark .hover\:bg-slate-100:hover {
+  background-color: #334155;
+}
+
+:root.dark .hover\:text-slate-900:hover {
+  color: #f8fafc;
+}
+
+:root.dark .bg-brand-100 {
+  background-color: rgba(47, 133, 90, 0.28);
+}
+
+:root.dark .text-brand-700 {
+  color: #86efac;
+}
+
+:root.dark input,
+:root.dark select,
+:root.dark textarea {
+  color: #e2e8f0;
+}
+
+:root.dark input::placeholder,
+:root.dark textarea::placeholder {
+  color: #94a3b8;
 }

@@ -88,6 +88,34 @@ beforeEach(() => {
 });
 
 describe("HistoryPage", () => {
+  it("renders picture title from original filename and model display name", async () => {
+    mocks.getHistory.mockResolvedValue(
+      makeHistoryResponse({
+        total: 1,
+        items: [
+          {
+            job_id: "job-1",
+            model_id: "rddc2020-imsc-last95",
+            engine_id: "rddc2020-cli",
+            status: "succeeded",
+            timestamp: "2026-03-24T00:00:00Z",
+            original_filename: "road_001.png",
+            defect_count: 1,
+            max_confidence: 0.8,
+          },
+        ],
+      }),
+    );
+
+    renderHistoryPage();
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "road_001.png" })).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Model: IMSC Last95")).toBeInTheDocument();
+  });
+
   it("uses default page size/sort and resets to page 1 when page size changes", async () => {
     mocks.getHistory.mockImplementation(
       async (
@@ -108,6 +136,7 @@ describe("HistoryPage", () => {
               engine_id: "rddc2020-cli",
               status: "succeeded",
               timestamp: "2026-03-24T00:00:00Z",
+              original_filename: `page-${page}.png`,
               defect_count: 1,
               max_confidence: 0.8,
             },
@@ -167,6 +196,7 @@ describe("HistoryPage", () => {
               engine_id: "rddc2020-cli",
               status: "succeeded",
               timestamp: "2026-03-24T00:00:00Z",
+              original_filename: `sort-${page}.png`,
               defect_count: 1,
               max_confidence: 0.8,
             },
@@ -253,6 +283,7 @@ describe("HistoryPage", () => {
                 engine_id: "rddc2020-cli",
                 status: "succeeded",
                 timestamp: "2026-03-24T00:00:00Z",
+                original_filename: "delete-me.png",
                 defect_count: 2,
                 max_confidence: 0.7,
               },
@@ -280,6 +311,7 @@ describe("HistoryPage", () => {
               engine_id: "rddc2020-cli",
               status: "succeeded",
               timestamp: "2026-03-24T00:00:00Z",
+              original_filename: "remaining.png",
               defect_count: 1,
               max_confidence: 0.6,
             },

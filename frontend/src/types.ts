@@ -108,6 +108,7 @@ export type HistoryItem = {
   engine_id: string;
   status: InferenceJobStatus;
   timestamp: string;
+  original_filename?: string | null;
   defect_count?: number;
   max_confidence?: number;
 };

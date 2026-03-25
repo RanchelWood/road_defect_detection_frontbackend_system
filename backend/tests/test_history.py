@@ -77,6 +77,7 @@ def test_history_is_user_scoped_and_supports_pagination_and_model_filter(client,
     assert page_two_data["page_size"] == 2
     assert page_two_data["total"] == 3
     assert len(page_two_data["items"]) == 1
+    assert all("original_filename" in item for item in page_one_data["items"] + page_two_data["items"])
 
     owner_returned_job_ids = {item["job_id"] for item in page_one_data["items"] + page_two_data["items"]}
     assert other_job_id not in owner_returned_job_ids
@@ -134,8 +135,10 @@ def test_history_sorting_by_time_id_and_name(client, db_session):
 
     name_asc = client.get("/history?sort_by=name&sort_order=asc&page_size=100", headers=headers)
     assert name_asc.status_code == 200
-    name_asc_ids = [item["job_id"] for item in name_asc.json()["data"]["items"]]
+    name_asc_items = name_asc.json()["data"]["items"]
+    name_asc_ids = [item["job_id"] for item in name_asc_items]
     assert name_asc_ids == [job_a, job_b, job_c]
+    assert [item["original_filename"] for item in name_asc_items] == ["a.jpg", "b.jpg", "c.jpg"]
 
 
 def test_history_computes_stats_and_handles_malformed_detection_json(client, db_session):
@@ -259,3 +262,4 @@ def test_clear_history_only_removes_callers_jobs(client, db_session):
     other_history = client.get("/history", headers=other_headers)
     assert other_history.status_code == 200
     assert other_history.json()["data"]["total"] == 1
+

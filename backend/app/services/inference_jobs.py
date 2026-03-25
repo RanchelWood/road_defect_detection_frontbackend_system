@@ -294,6 +294,7 @@ class InferenceJobService:
             "job_id": job.id,
             "model_id": job.model_id,
             "engine_id": job.engine_id,
+            "original_filename": job.original_filename,
             "status": job.status,
             "timestamp": timestamp.isoformat(),
         }
@@ -392,3 +393,4 @@ class InferenceJobService:
         target_path = job_dir / f"input{suffix}"
         target_path.write_bytes(file_bytes)
         return target_path
+

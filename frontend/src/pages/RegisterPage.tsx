@@ -1,9 +1,10 @@
-﻿import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 import { register } from "../api/auth";
 import { ApiClientError } from "../api/client";
 import { useAuth } from "../auth/AuthContext";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 export function RegisterPage() {
   const navigate = useNavigate();
@@ -37,7 +38,11 @@ export function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-6">
+    <div className="relative flex min-h-screen items-center justify-center p-6">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg">
         <h1 className="mb-2 text-2xl font-semibold text-slate-900">Create account</h1>
         <p className="mb-6 text-sm text-slate-600">Road Damage Defect System</p>
@@ -79,7 +84,10 @@ export function RegisterPage() {
         </form>
 
         <p className="mt-4 text-sm text-slate-600">
-          Already have an account? <Link className="text-brand-700" to="/login">Login</Link>
+          Already have an account?{" "}
+          <Link className="text-brand-700" to="/login">
+            Login
+          </Link>
         </p>
       </div>
     </div>

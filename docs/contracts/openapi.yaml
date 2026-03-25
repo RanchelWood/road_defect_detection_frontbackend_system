@@ -556,6 +556,7 @@ components:
         - job_id
         - model_id
         - engine_id
+        - original_filename
         - status
         - timestamp
       properties:
@@ -564,6 +565,8 @@ components:
         model_id:
           type: string
         engine_id:
+          type: string
+        original_filename:
           type: string
         status:
           type: string
