@@ -1,4 +1,4 @@
-# Operations Runbook (Single VM, External Engine Integration)
+﻿# Operations Runbook (Single VM, External Engine Integration)
 
 This runbook defines v1 runtime operations with backend/frontend plus external inference engine integration.
 
@@ -6,6 +6,7 @@ This runbook defines v1 runtime operations with backend/frontend plus external i
 
 - One VM hosting backend and frontend services.
 - External inference runtime for first engine (`rddc2020`) available via sibling path or sidecar container.
+- Planned second engine integration: `orddc2024` as additional adapter runtime.
 - Named volumes for SQLite and media artifacts.
 - Job workspace directories for per-job engine execution outputs.
 
@@ -14,7 +15,8 @@ This runbook defines v1 runtime operations with backend/frontend plus external i
 1. Ensure `.env` exists from `.env.example`.
 2. Start backend and frontend services.
 3. Verify `rddc2020` runtime path and required weights are available.
-4. Validate backend health and a dry-run engine command path check.
+4. If second-engine integration is enabled, verify `orddc2024` runtime path, python environment, and `models_ph1/models_ph2` caches.
+5. Validate backend health and a dry-run engine command path check.
 
 ## Health and Observability Baseline
 
@@ -35,6 +37,7 @@ Operational checks:
 - Job creation endpoint accepts request and returns queued state.
 - Polling endpoint transitions jobs to terminal states (`succeeded`, `failed`, `cancelled`).
 - Cancel endpoint (`POST /inference/jobs/{job_id}/cancel`) updates queued/running jobs safely.
+- Multi-engine safety: engine-specific runtime failures are isolated by adapter and should not block other engine models.
 - Logs show command runtime and failures with context.
 
 ## Backup and Recovery (v1)
@@ -74,3 +77,36 @@ Default is CPU-first. If GPU runtime is introduced later, keep API contract unch
 
 - API consumers must fetch job images via authenticated endpoint `GET /inference/jobs/{job_id}/image/{kind}`.
 - Filesystem paths in job payloads are backend-internal references and are not reliable browser URLs.
+
+## ORDDC2024 Preflight (Planned Integration)
+
+Use this checklist when enabling the second engine:
+
+- `orddc2024` root path exists and contains phase scripts.
+- Configured python executable can import ORDDC dependencies.
+- `models_ph1` and `models_ph2` folders are present (production default: pre-provisioned; no on-demand download).
+- Runtime can write per-job `image_root`, `results.csv`, `boxed_output`, and run log files.
+- Warnings in stderr alone (for example `pkg_resources` deprecation) do not count as job failure when exit code and output checks pass.
+
+## Video Inference Preflight (Planned Phase 4A)
+
+Use this checklist before enabling async video jobs:
+
+- Video decode/render toolchain is available (for example ffmpeg/opencv path used by implementation).
+- Upload limits are configured (max size and max duration) for CPU-safe operation.
+- Temporary frame directories are writable and cleanup policy is configured.
+- Concurrency cap for video jobs is set to avoid CPU starvation.
+- Default video model is set to a speed-oriented preset (`orddc2024-phase2-ensemble`).
+
+## Streaming Preflight (Planned Phase 4B)
+
+- WebSocket endpoint auth verification is enabled.
+- Stream-capable models are explicitly marked in registry metadata.
+- Backpressure policy exists for slow clients.
+- Async video fallback path remains available when WebSocket session fails.
+
+## Planning References
+
+- `docs/architecture/orddc2024-integration-design.md`
+- `docs/architecture/video-support-design.md`
+- `docs/contracts/video-inference-job-contract.md`

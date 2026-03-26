@@ -32,8 +32,12 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-25 09:10Z) UX enhancement batch completed: history cards now show picture title + model name line, and GUI now supports persistent light/dark theme switching.
 
 - [x] (2026-03-25 10:35Z) Documentation synchronization pass completed: audited all project-owned Markdown files and aligned API/UX/ops/workflow docs with implemented Milestone 2 behavior.
+- [x] (2026-03-26 07:25Z) Second-engine planning assessment completed for orddc2024: consulted integration report/runtime scripts and documented the implementation blueprint (no code changes).
+- [x] (2026-03-26 10:10Z) Video-support feasibility and roadmap planning completed: consulted ORDDC2024 video report and documented async-first video contract/design updates (no code changes).
 - [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
-- [ ] Milestone 4: Phase 2 real-time streaming design/implementation after stable image-job flow.
+- [ ] Milestone 3C: ORDDC2024 second-engine integration using existing adapter contracts and async job APIs.
+- [ ] Milestone 4A: async video inference jobs (`create + poll + cancel`) with video-specific result metadata.
+- [ ] Milestone 4B: optional WebSocket streaming for near-real-time inference after Milestone 4A stabilizes.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
 
 ## Surprises & Discoveries
@@ -53,6 +57,21 @@ After this work, a beginner should be able to run a web system where a user can 
 - Observation: SQLite datetime roundtrip can return timezone-naive values at API boundary unless normalized before serialization.
   Evidence: inference timer showed 480:00 in UTC+8 locale when frontend interpreted naive timestamps as local-time anchors.
 
+
+- Observation: ORDDC2024 runtime scripts expect directory input/output contracts, not single-image file paths.
+  Evidence: `inference_script_v2_Phase1.py` and `inference_script_v2_Phase2.py` require `<images_path> <output_csv> [output_images_dir]` arguments.
+
+- Observation: ORDDC2024 successful runs can still emit warnings on stderr.
+  Evidence: `run_log.md` and `run_log_phase2_bash.md` include `pkg_resources` warnings while producing valid CSV and boxed outputs.
+
+- Observation: ORDDC2024 Phase 1 is runtime-heavy on CPU because of a large ensemble set.
+  Evidence: Phase 1 log shows 15-model loading and about 22 seconds elapsed for one sample image on CPU.
+
+- Observation: ORDDC2024 runtime is image-oriented, and current scripts do not provide a complete video-native output contract.
+  Evidence: `VIDEO_INFERENCE_SUPPORT_REPORT.md` documents that pipeline assumptions remain image-style and require frame extraction/aggregation for this project.
+
+- Observation: ORDDC2024 Phase 2 ensemble is materially faster than Phase 1 and is the better candidate for planned video workloads.
+  Evidence: `VIDEO_INFERENCE_SUPPORT_REPORT.md` benchmark notes show Phase 2 lower end-to-end latency versus Phase 1 under comparable CPU conditions.
 ## Decision Log
 
 - Decision: Use external `rddc2020` command-line integration for Milestone 2 instead of implementing native inference in this repo.
@@ -138,6 +157,30 @@ After this work, a beginner should be able to run a web system where a user can 
 - Decision: Theme system uses persisted class-based light/dark switching at app root with reusable toggle controls in both auth pages and authenticated shell.
   Rationale: Delivers requested dark theme UX with minimal refactor and stable cross-page behavior.
   Date/Author: 2026-03-25 / Codex
+
+- Decision: Integrate ORDDC2024 through the existing async jobs API by mapping phase selection into model presets (`orddc2024-phase1-ensemble`, `orddc2024-phase2-ensemble`).
+  Rationale: Preserves frontend/API compatibility while enabling second-engine support with minimal surface change.
+  Date/Author: 2026-03-26 / Codex
+
+- Decision: Use direct python executable invocation for ORDDC2024 adapter process management instead of Git Bash shell wrapping.
+  Rationale: Matches current adapter architecture and keeps timeout/cancellation/error handling deterministic.
+  Date/Author: 2026-03-26 / Codex
+
+- Decision: ORDDC2024 integration will default to pre-provisioned model caches (`models_ph1`/`models_ph2`) and fail fast when missing.
+  Rationale: Avoids runtime download instability in production job execution paths.
+  Date/Author: 2026-03-26 / Codex
+
+- Decision: Video support will be delivered in two steps: async video-job processing first, then low-latency WebSocket streaming.
+  Rationale: Async video jobs reuse existing queue/polling reliability and reduce implementation risk before introducing stream-state complexity.
+  Date/Author: 2026-03-26 / Codex
+
+- Decision: `orddc2024-phase2-ensemble` is the default planned model preset for video inference, while Phase 1 remains optional for quality-focused offline runs.
+  Rationale: Phase 2 provides better speed characteristics and is the practical default for user-facing video workflows.
+  Date/Author: 2026-03-26 / Codex
+
+- Decision: Add a dedicated video-job contract document now, while keeping image-job API contracts unchanged.
+  Rationale: Separates upcoming video semantics from stable image MVP behavior and keeps beginner-facing docs clear.
+  Date/Author: 2026-03-26 / Codex
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -176,6 +219,10 @@ Verification outcome (2026-03-25): Test Engineer retest passed for this UX batch
 
 Documentation sync outcome (2026-03-25): repository-owned Markdown docs were audited and updated to reflect current endpoints, statuses, UX behavior, QA ownership model, and operations checks after Milestone 2 completion.
 
+Second-engine planning outcome (2026-03-26): ORDDC2024 runtime/report/codebase were analyzed and a no-code implementation blueprint was documented, including phase-presets strategy, workspace contract mapping, and validation gates for Milestone 3C.
+
+Video-support planning outcome (2026-03-26): ORDDC2024 video feasibility was assessed from local report evidence; team will implement async video jobs first (Phase 4A) and keep WebSocket streaming as a follow-up (Phase 4B), with ORDDC2024 Phase 2 as default video model candidate.
+
 ## Context and Orientation
 
 Current state includes a working Milestone 2 MVP in `backend/` and `frontend/` (auth, models, async inference jobs, authenticated job-image retrieval, and history). The first inference runtime integrated is the sibling directory `D:\road_defect_detection\rddc2020`, with its primary script at `D:\road_defect_detection\rddc2020\yolov5\detect.py`.
@@ -193,6 +240,12 @@ Milestone 2B is complete. `rddc2020` execution now runs in per-job isolated work
 Milestone 2C implements persistence and retrieval. Store job status transitions (`queued`, `running`, `succeeded`, `failed`, `cancelled`) and history metadata tied to user and model. Surface results through job detail and history endpoints.
 
 Milestone 2D is complete. Frontend now uses async job create + polling flow, renders queued/running/succeeded/failed/cancelled states, displays result metadata/detections, and provides history navigation with filters and job deep-links.
+
+Milestone 3C (planned) adds the second engine (orddc2024-cli) using the existing adapter contract and async job APIs. Phase 1 and Phase 2 ORDDC scripts will be exposed as model presets so frontend/API shape remains unchanged.
+
+Milestone 4A (planned) adds async video inference jobs (`create + poll + cancel`) reusing current lifecycle patterns and history model with video-specific result metadata.
+
+Milestone 4B (planned) adds optional WebSocket streaming for near-real-time frame inference after Milestone 4A stabilizes.
 
 ## Concrete Steps
 
@@ -243,6 +296,9 @@ Maintain these artifacts during implementation:
     docs/architecture/data-model.md
     docs/operations/runbook.md
     docs/engineering/test-engineer-workflow.md
+    docs/architecture/orddc2024-integration-design.md
+    docs/contracts/video-inference-job-contract.md
+    docs/architecture/video-support-design.md
 
 Capture concise evidence snippets after milestone implementation:
 
@@ -302,3 +358,6 @@ Plan change note (2026-03-25 / Codex): Updated workflow governance so Test Engin
 Plan change note (2026-03-25 / Codex): Implemented user-requested feature batch (model persistence, job cancellation, history sorting), triaged post-implementation test blockers to FE/BE owners, and closed with Test Engineer retest evidence.
 Plan change note (2026-03-25 / Codex): Implemented history card content update (picture title + model name) and persistent light/dark theme toggle, then closed with Test Engineer verification evidence.
 Plan change note (2026-03-25 / Codex): Audited all project-owned Markdown files and synchronized docs to current Milestone 2 API/UX/workflow/operations state.
+
+Plan change note (2026-03-26 / Codex): Added ORDDC2024 second-engine integration planning docs and updated ExecPlan decisions/discoveries for Milestone 3C execution readiness.
+Plan change note (2026-03-26 / Codex): Added video-support feasibility decisions and synced architecture/contracts/UX docs for planned Milestone 4A (async video jobs) and 4B (WebSocket streaming).

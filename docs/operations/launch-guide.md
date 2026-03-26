@@ -1,4 +1,4 @@
-# Launch Guide
+﻿# Launch Guide
 
 This guide shows the simplest way to start the Road Damage Defect System on a Windows machine with PowerShell.
 
@@ -6,6 +6,8 @@ The project currently has two app services plus one inference runtime dependency
 - Backend: FastAPI on `http://localhost:8000`
 - Frontend: React on `http://localhost:5173`
 - External inference runtime: sibling `rddc2020` path used by backend adapter for image jobs
+
+Planned next runtime integration: `orddc2024` (not enabled yet in current code).
 
 ## First-Time Setup
 
@@ -118,3 +120,8 @@ Then open:
 - If `npm run dev` fails, run `npm install` again in the `frontend` folder.
 - If login or job submission fails, confirm the backend is running on port `8000`.
 - If jobs stay queued/running unexpectedly, confirm `rddc2020` runtime path and weights are available to backend.
+
+## Planned Features Notice
+
+- Async video jobs and WebSocket streaming are planned in documentation but not yet available in the current runnable build.
+- See `docs/architecture/video-support-design.md` and `docs/contracts/video-inference-job-contract.md` for planned behavior.

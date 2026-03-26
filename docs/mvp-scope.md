@@ -1,4 +1,4 @@
-# MVP Scope Definition
+﻿# MVP Scope Definition
 
 This document narrows the PRD into an implementation-ready MVP while preserving room for future inference engines and feature upgrades.
 
@@ -20,17 +20,17 @@ Deliver a web system where authenticated users submit road-defect image inferenc
 
 ## Out of Scope for MVP
 
-- Real-time video or webcam streaming.
+- Native real-time video or webcam streaming.
 - Mid-session model switching for streaming workflows.
 - Distributed queue infrastructure beyond local async job orchestration.
 - Object storage as default media backend.
 - Multi-tenant organization features and advanced RBAC.
 
-## Phase 2 Scope (Planned Next)
+## Post-MVP Video Roadmap (Planned)
 
-- WebSocket streaming endpoint for frame-level detection.
-- Streaming UI with overlay rendering and restart-on-model-change behavior.
-- Streaming session summary persistence in history.
+- Phase 4A: async video jobs (`POST/GET/cancel`) with frame sampling and summary output.
+- Phase 4B: WebSocket streaming (`/ws/inference`) for near-real-time frames after 4A stabilizes.
+- Planned first video default model: `orddc2024-phase2-ensemble`.
 
 ## MVP Acceptance Behaviors
 
@@ -41,3 +41,8 @@ Deliver a web system where authenticated users submit road-defect image inferenc
 - Success response includes annotated image reference, detections, model ID, engine ID, and timing.
 - History page lists user jobs with sorting and pagination controls.
 - Invalid token, invalid file, unsupported model, or engine failure returns documented error envelope.
+
+## Planning References
+
+- `docs/architecture/video-support-design.md`
+- `docs/contracts/video-inference-job-contract.md`

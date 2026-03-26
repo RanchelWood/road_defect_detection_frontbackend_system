@@ -1,4 +1,4 @@
-# Migration Paths
+﻿# Migration Paths
 
 This document captures upgrade paths from MVP defaults to scalable multi-engine operations.
 
@@ -22,10 +22,10 @@ This document captures upgrade paths from MVP defaults to scalable multi-engine 
 - Benchmark and publish latency/throughput changes.
 - Keep CPU fallback.
 
-## 4) Single External Engine -> Multiple Inference Engines
+## 4) Single External Engine -> Multiple Inference Engines (Current Next Step)
 
 - Preserve `engine_id` + `model_id` contract in registry.
-- Implement additional adapters under common engine interface.
+- Implement additional adapters under common engine interface (next target: `orddc2024-cli`).
 - Add per-engine health and capability metadata.
 - Keep frontend request shape stable (`model_id` only).
 
@@ -39,3 +39,16 @@ This document captures upgrade paths from MVP defaults to scalable multi-engine 
 
 - Maintain `GET /inference/jobs/{job_id}` as compatibility baseline.
 - Add optional push channel later (SSE/WebSocket) without breaking polling clients.
+
+## 7) Image-only MVP -> Video + Streaming Roadmap (Planned)
+
+- Step 7A: add async video jobs with queue/poll/cancel and shared history timeline.
+- Step 7B: add WebSocket streaming for near-real-time frame inference after 7A stabilizes.
+- Keep one model registry and adapter contract across image/video/streaming.
+- Keep async fallback path even after streaming rollout.
+
+## Planning References
+
+- `docs/architecture/orddc2024-integration-design.md`
+- `docs/architecture/video-support-design.md`
+- `docs/contracts/video-inference-job-contract.md`
