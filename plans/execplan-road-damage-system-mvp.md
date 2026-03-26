@@ -30,6 +30,8 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-25 03:20Z) Workflow ownership optimized: Test Engineer now executes required test suites and submits command/artifact evidence; Team Leader is evidence supervisor and closure gate keeper.
 - [x] (2026-03-25 07:40Z) Feature batch completed: inference model selection now persists across refresh, users can cancel queued/running jobs, and history supports time/id/name sorting with asc/desc order.
 - [x] (2026-03-25 09:10Z) UX enhancement batch completed: history cards now show picture title + model name line, and GUI now supports persistent light/dark theme switching.
+
+- [x] (2026-03-25 10:35Z) Documentation synchronization pass completed: audited all project-owned Markdown files and aligned API/UX/ops/workflow docs with implemented Milestone 2 behavior.
 - [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [ ] Milestone 4: Phase 2 real-time streaming design/implementation after stable image-job flow.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
@@ -142,7 +144,7 @@ This section must be updated at each milestone completion. At full completion, s
 
 Milestone 2A outcome (2026-03-22): backend now exposes auth-protected model listing and async inference job contract with queued persistence. Remaining work moves to Milestone 2B for real `rddc2020` command execution and status transitions beyond queued.
 
-Milestone 2B integration outcome (2026-03-22): backend now executes `rddc2020` through per-job isolated workspace/output paths and transitions jobs `queued -> running -> succeeded/failed` with persisted result/error metadata.
+Milestone 2B integration outcome (2026-03-22): backend now executes `rddc2020` through per-job isolated workspace/output paths and transitions jobs `queued -> running -> succeeded/failed/cancelled` with persisted result/error metadata.
 
 Milestone 2B hardening outcome (2026-03-22): job detail payloads now normalize to the declared detection schema, SQLite startup migration backfills Milestone 2B columns safely for older databases, adapter execution has explicit timeout classification, and startup reconciles queued/running jobs with documented durability limits.
 
@@ -172,6 +174,8 @@ UX theme/content outcome (2026-03-25): history cards now present picture filenam
 
 Verification outcome (2026-03-25): Test Engineer retest passed for this UX batch (`backend pytest: 32 passed`, `frontend unit: 19 passed`, `frontend e2e smoke: 3 passed`).
 
+Documentation sync outcome (2026-03-25): repository-owned Markdown docs were audited and updated to reflect current endpoints, statuses, UX behavior, QA ownership model, and operations checks after Milestone 2 completion.
+
 ## Context and Orientation
 
 Current state includes a working Milestone 2 MVP in `backend/` and `frontend/` (auth, models, async inference jobs, authenticated job-image retrieval, and history). The first inference runtime integrated is the sibling directory `D:\road_defect_detection\rddc2020`, with its primary script at `D:\road_defect_detection\rddc2020\yolov5\detect.py`.
@@ -186,9 +190,9 @@ Milestone 2A defines adapter contracts and async job API shapes. Add backend ser
 
 Milestone 2B is complete. `rddc2020` execution now runs in per-job isolated workspace/output directories so `results.csv` and output paths do not collide across jobs. Current runtime uses in-process execution with startup reconciliation; external worker/queue is deferred to later hardening.
 
-Milestone 2C implements persistence and retrieval. Store job status transitions (`queued`, `running`, `succeeded`, `failed`) and history metadata tied to user and model. Surface results through job detail and history endpoints.
+Milestone 2C implements persistence and retrieval. Store job status transitions (`queued`, `running`, `succeeded`, `failed`, `cancelled`) and history metadata tied to user and model. Surface results through job detail and history endpoints.
 
-Milestone 2D is complete. Frontend now uses async job create + polling flow, renders queued/running/succeeded/failed states, displays result metadata/detections, and provides history navigation with filters and job deep-links.
+Milestone 2D is complete. Frontend now uses async job create + polling flow, renders queued/running/succeeded/failed/cancelled states, displays result metadata/detections, and provides history navigation with filters and job deep-links.
 
 ## Concrete Steps
 
@@ -297,3 +301,4 @@ Plan change note (2026-03-24 / Codex): Implemented history feature batch (delete
 Plan change note (2026-03-25 / Codex): Updated workflow governance so Test Engineer executes Vitest/Playwright/pytest evidence runs and Team Leader performs supervision-only closure gating.
 Plan change note (2026-03-25 / Codex): Implemented user-requested feature batch (model persistence, job cancellation, history sorting), triaged post-implementation test blockers to FE/BE owners, and closed with Test Engineer retest evidence.
 Plan change note (2026-03-25 / Codex): Implemented history card content update (picture title + model name) and persistent light/dark theme toggle, then closed with Test Engineer verification evidence.
+Plan change note (2026-03-25 / Codex): Audited all project-owned Markdown files and synchronized docs to current Milestone 2 API/UX/workflow/operations state.

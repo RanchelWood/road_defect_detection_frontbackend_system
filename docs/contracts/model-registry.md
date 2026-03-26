@@ -8,35 +8,33 @@ The model registry is the single source of truth for selectable model presets ac
 - Publish stable model presets to frontend selector.
 - Enable multiple inference engines without changing frontend API shape.
 
+## Current Implementation
+
+- Registry is assembled at runtime from registered adapters.
+- First active engine: `rddc2020-cli`.
+- First preset set:
+  - `rddc2020-imsc-last95`
+  - `rddc2020-imsc-ensemble-test1`
+  - `rddc2020-imsc-ensemble-test2`
+
 ## Data Contract
 
 Each model entry includes:
 
 - `model_id`: stable public ID used by clients.
 - `engine_id`: inference engine owner for this model preset.
+- `display_name`: user-facing model name.
+- `description`: short usage context.
 - `status`: `active`, `deprecated`, or `disabled`.
 - `performance_notes`: guidance on speed/accuracy tradeoffs.
+- `runtime_type`: backend runtime type label (`cli`, `http`, `grpc`).
 
-Optional backend-only metadata:
+Optional future metadata (not required by current frontend):
 
 - `engine_config_json` (weights list, CLI arguments, threshold defaults)
 - `supported_labels`
 - `avg_latency_ms_cpu`
 - `avg_latency_ms_gpu`
-
-## Initial Engine and Presets (Phase 2)
-
-Engine:
-
-- `rddc2020-cli`
-
-Initial model presets:
-
-- `rddc2020-imsc-last95`
-- `rddc2020-imsc-ensemble-test1`
-- `rddc2020-imsc-ensemble-test2`
-
-Each preset maps to a predefined CLI argument bundle in backend adapter configuration.
 
 ## Validation Rules
 

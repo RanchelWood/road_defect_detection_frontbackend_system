@@ -4,15 +4,17 @@ This document narrows the PRD into an implementation-ready MVP while preserving 
 
 ## Product Goal
 
-Deliver a web system where authenticated users submit road-defect image inference jobs, monitor job status, view annotated results, and review history.
+Deliver a web system where authenticated users submit road-defect image inference jobs, monitor job status, cancel running work when needed, view annotated results, and review history.
 
 ## In Scope for MVP
 
 - User registration/login using email/password and JWT access control.
 - Model selector fed by backend model registry.
-- Asynchronous image inference job API (`create job` + `poll status`).
+- Asynchronous image inference job API (`create job` + `poll status` + `cancel job`).
 - External inference integration for first engine: `rddc2020` command-line runtime.
 - Persisted inference history per user with model and engine metadata.
+- History controls: page size, model filter, and sorting (`time|id|name`, `asc|desc`).
+- Frontend usability additions: persisted model selection and persisted light/dark theme preference.
 - Docker Compose single-VM deployment path for frontend/backend plus inference integration runtime.
 - Basic observability: request IDs, job state transitions, command execution timings, and standardized API errors.
 
@@ -34,7 +36,8 @@ Deliver a web system where authenticated users submit road-defect image inferenc
 
 - A user can register/login and access protected pages.
 - User can select model, upload image, submit job, and receive `job_id` with `queued` status.
-- User can poll until `succeeded` or `failed`.
+- User can poll until `succeeded`, `failed`, or `cancelled`.
+- User can cancel a queued/running job and see `cancelled` terminal state.
 - Success response includes annotated image reference, detections, model ID, engine ID, and timing.
-- History page lists completed and failed jobs for authenticated user.
+- History page lists user jobs with sorting and pagination controls.
 - Invalid token, invalid file, unsupported model, or engine failure returns documented error envelope.

@@ -1,81 +1,67 @@
 # Data Model and Entity Relationships
 
-This model supports async job-based inference and multi-engine extensibility while remaining SQLite-first and PostgreSQL-ready.
+This document describes the current persisted schema in this repository and the extension direction for future multi-engine growth.
 
-## Core Entities
+## Current Persisted Entities (Implemented)
 
-### User
+### User (`users`)
 
 - `id` (integer primary key)
 - `email` (unique)
 - `password_hash`
 - `role` (`admin` or `user`)
 - `created_at`
-- `updated_at`
 
-### InferenceEngine
+### RefreshTokenSession (`refresh_token_sessions`)
 
-- `id` (text primary key, example: `rddc2020-cli`)
-- `display_name`
-- `status` (`active`, `maintenance`, `disabled`)
-- `runtime_type` (`cli`, `http`, `grpc`)
-- `base_path_or_endpoint`
+- `id` (integer primary key)
+- `user_id` (foreign key -> `users.id`)
+- `refresh_token_hash`
+- `expires_at`
 - `created_at`
-- `updated_at`
 
-### ModelRegistryEntry
+### InferenceJob (`inference_jobs`)
 
-- `id` (text primary key, stable `model_id` exposed to clients)
-- `engine_id` (foreign key -> InferenceEngine.id)
-- `model_key` (engine-local identifier or weight reference)
-- `status` (`active`, `deprecated`, `disabled`)
-- `performance_notes`
-- `created_at`
-- `updated_at`
-
-### InferenceJob
-
-- `id` (UUID text)
-- `user_id` (foreign key -> User)
-- `engine_id` (foreign key -> InferenceEngine.id)
-- `model_id` (foreign key -> ModelRegistryEntry.id)
-- `status` (`queued`, `running`, `succeeded`, `failed`)
-- `engine_job_ref` (nullable external/internal runner reference)
+- `id` (UUID text primary key)
+- `user_id` (foreign key -> `users.id`)
+- `engine_id` (text)
+- `model_id` (text)
+- `status` (`queued`, `running`, `succeeded`, `failed`, `cancelled`)
 - `input_path`
 - `output_path` (nullable)
 - `detections_json` (nullable)
+- `duration_ms` (nullable)
+- `original_filename`
 - `error_code` (nullable)
 - `error_message` (nullable)
 - `created_at`
 - `started_at` (nullable)
 - `finished_at` (nullable)
-- `duration_ms` (nullable)
 
-### MediaAsset
+## Relationship Summary (Current)
 
-- `id` (UUID text)
-- `inference_job_id` (foreign key -> InferenceJob.id)
-- `kind` (`original`, `annotated`)
-- `file_path`
-- `file_size_bytes`
-- `mime_type`
-- `created_at`
+- One `User` has many `RefreshTokenSession` rows.
+- One `User` has many `InferenceJob` rows.
+- `InferenceJob` currently stores `engine_id` and `model_id` as stable text references (no FK table yet).
 
-## Relationship Summary
+## Model Registry and Engine Metadata (Current Runtime)
 
-- One `User` has many `InferenceJob`.
-- One `InferenceEngine` has many `ModelRegistryEntry` and many `InferenceJob`.
-- One `ModelRegistryEntry` is used by many `InferenceJob`.
-- One `InferenceJob` can have multiple related `MediaAsset` records.
+- Model presets are defined in adapter code (currently `backend/app/services/adapters/rddc2020.py`).
+- Registry lookup happens through service layer (`ModelRegistryService` + engine registry).
+- History APIs include `model_id`, `engine_id`, and `original_filename` for UI rendering.
+
+## Planned Extension Entities (Not Yet Persisted)
+
+Future milestones may add explicit tables such as `InferenceEngine` and `ModelRegistryEntry` when dynamic model management is required. Current API contracts already use stable `engine_id`/`model_id` so this migration can be additive.
 
 ## Notes for `rddc2020` Integration
 
-- Jobs must use per-job working/output directories.
-- `results.csv` parsing output is normalized into `detections_json`.
-- Engine failures are recorded in job error fields rather than dropped.
+- Jobs run in per-job isolated workspace/output directories.
+- Adapter output (`results.csv` + annotated image) is normalized into `detections_json` and `output_path`.
+- Runtime cancellation is represented by terminal status `cancelled` with `JOB_CANCELLED` error code context.
 
 ## Migration-Ready Conventions
 
 - Keep schema changes through migration files.
-- Use DB-agnostic query patterns in repositories.
 - Preserve stable `model_id` contracts when adding engines.
+- Keep status semantics backward compatible (`cancelled` remains terminal).

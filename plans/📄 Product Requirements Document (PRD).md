@@ -1,14 +1,20 @@
-# 📄 Product Requirements Document (PRD)
+# Product Requirements Document (PRD)
+
+Status: Draft ideation document (not the canonical implementation spec).
+
+Last sync to current project progress: 2026-03-25.
+
+Current implementation coverage:
+- Implemented in MVP: authentication, image inference jobs, model selection, cancel job, history listing/management, light-dark theme, and test workflow.
+- Planned next: real-time video/WebSocket inference and advanced scaling.
 
 ## 1. Project Overview
 
-**System Name:**
- Road Damage Detection System
+System Name:
+Road Damage Detection System
 
-**Objective:**
- A web-based platform that allows users to upload images or stream video for detecting road defects using a YOLO-based model, and visualize results in real time.
-
-------
+Objective:
+A web-based platform that allows users to upload images or stream video for detecting road defects using a YOLO-based model, and visualize results.
 
 ## 2. Core Features
 
@@ -19,43 +25,35 @@
 - JWT-based authentication
 - Optional: role (admin/user)
 
-------
-
 ### 2.2 Image Inference
 
 - Upload single image
 - Run YOLO inference
 - Return:
-    - Annotated image
-    - Detection results:
-        - label (crack, pothole, etc.)
-        - confidence
-        - bounding box
-
-------
+  - Annotated image
+  - Detection results:
+    - label (crack, pothole, etc.)
+    - confidence
+    - bounding box
 
 ### 2.3 Video / Real-time Inference (WebSocket)
 
 - Stream frames from:
-    - webcam OR uploaded video
+  - webcam OR uploaded video
 - Backend processes frames in real-time
 - Return annotated frames via WebSocket
 - Display live detection overlay in frontend
 
-------
-
 ### 2.4 History & Database
 
 - Store:
-    - uploaded images
-    - inference results
-    - timestamps
-    - user ID
+  - uploaded images
+  - inference results
+  - timestamps
+  - user ID
 - Allow users to:
-    - view history
-    - re-open results
-
-------
+  - view history
+  - re-open results
 
 ### 2.5 Frontend UI
 
@@ -65,77 +63,51 @@
 - Real-time video inference page
 - History page
 
+### 2.6 Model Selection
 
-
-### 2.6 Model Selection (NEW FEATURE)
-
-#### Objective
-
+Objective:
 Allow users to select different YOLO models when performing inference, enabling flexibility in:
 
 - accuracy vs speed trade-offs
-- different trained datasets (e.g., crack-only vs multi-defect)
+- different trained datasets (for example, crack-only vs multi-defect)
 
-------
+Functional Requirements:
 
-### Functional Requirements
-
-#### Model Selection (Image Inference)
+Model Selection (Image Inference)
 
 - User can select a model before uploading image
 - Selected model is used for inference
 - Default model is pre-selected
 
-------
-
-#### Model Selection (Real-time Video)
+Model Selection (Real-time Video)
 
 - User selects model before starting stream
 - Model remains fixed during session
 - Optional: allow switching model (restart stream required)
 
-------
-
-#### Supported Models (Initial Set)
+Supported Models (Initial Set)
 
 Example:
 
-```
-yolov8n (fast, low accuracy)
-yolov8s (balanced)
-yolov8m (higher accuracy)
-custom-road-v1 (your trained model)
-```
+    yolov8n (fast, low accuracy)
+    yolov8s (balanced)
+    yolov8m (higher accuracy)
+    custom-road-v1 (your trained model)
 
-------
+Backend Requirements
 
-#### Backend Requirements
-
-- Maintain a **model registry**
+- Maintain a model registry
 - Load models dynamically or cache them in memory
 - Validate model name before inference
 
-------
+Frontend Requirements
 
-#### Frontend Requirements
-
-- Dropdown / selector:
-    - placed near upload button or video controls
+- Dropdown / selector placed near upload button or video controls
 - Display current selected model
 
-------
-
-#### Persistence
+Persistence
 
 - Store selected model in inference history
-
-------
-
-
-
-
-
-
 
 ## 3. Non-Functional Requirements
 
@@ -146,7 +118,7 @@ custom-road-v1 (your trained model)
 
 ### Scalability
 
-- Modular backend (Flask blueprint structure)
+- Modular backend
 - Separate inference module
 
 ### Security
@@ -154,3 +126,9 @@ custom-road-v1 (your trained model)
 - Password hashing (bcrypt)
 - JWT authentication
 - Input validation
+
+## Canonical References
+
+For implementation-accurate scope and progress tracking, use:
+- `docs/mvp-scope.md`
+- `plans/execplan-road-damage-system-mvp.md`

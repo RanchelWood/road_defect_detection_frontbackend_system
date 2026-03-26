@@ -7,7 +7,7 @@ This guide explains how to use the Vitest + Playwright workflow in this repo.
 The MVP already works, but we need fast and repeatable checks to catch regressions:
 
 - Vitest: quick checks for frontend logic and API-client behavior.
-- Playwright: real browser checks for user flows (login, protected routes, inference flow).
+- Playwright: real browser checks for user flows (login, protected routes, inference flow, history flow).
 
 ## Current Tool Versions in This Repo
 
@@ -98,16 +98,19 @@ Command set by scope:
 - `src/pages/HistoryPage.test.tsx`
   - page-size + sorting query behavior
   - pagination fallback after delete
+  - history item rendering using filename title data
 - `src/pages/InferencePage.test.tsx`
   - model selection persistence/fallback after refresh
   - cancel action flow rendering
+- `src/theme/ThemeContext.test.tsx`
+  - persisted theme restore and toggle behavior
 
 ### Playwright Smoke
 
 - `tests/e2e/smoke.spec.ts`
   - unauthenticated protected-route redirect
   - login -> dashboard -> logout
-  - inference submit -> polling -> succeeded result render
+  - inference submit -> polling -> terminal result render
 
 ## How Test Results Should Be Used in Team Workflow
 

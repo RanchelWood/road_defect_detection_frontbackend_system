@@ -25,8 +25,9 @@ Ownership:
 
 Deliverables:
 
-- Job-based UX (`queued/running/succeeded/failed`).
-- Polling and failure recovery interaction rules.
+- Job-based UX (`queued/running/succeeded/failed/cancelled`).
+- Polling, cancellation, and failure recovery interaction rules.
+- History sorting and content presentation consistency.
 
 ## Workstream B: Backend Contracts and Data
 
@@ -39,7 +40,7 @@ Ownership:
 
 Deliverables:
 
-- Stable async jobs API.
+- Stable async jobs API with cancel semantics.
 - Multi-engine model/engine contract and schema alignment.
 
 ## Workstream C: Inference Engine Integration (First Engine)

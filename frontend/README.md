@@ -4,13 +4,16 @@ This frontend includes Milestone 2 MVP flows:
 
 - `/login` and `/register` wired to backend auth APIs
 - Protected `/dashboard` with health check + logout
+- Light/dark theme toggle with persisted preference
 - Protected `/inference` page with:
   - model loading
+  - model selection persistence across refresh
   - image upload + job submission
   - async polling (`queued/running` -> terminal)
+  - cancel action for queued/running jobs
   - result metadata + detections rendering
   - authenticated annotated image fetching
-- Protected `/history` page with pagination/filtering and deep-link reopen of prior jobs
+- Protected `/history` page with pagination/filtering/sorting, delete actions, and deep-link reopen of prior jobs
 - Auth state persisted in local storage with 401 session-clear redirect handling
 
 ## Local Run
@@ -64,4 +67,3 @@ npm run test:e2e
 cd frontend
 npm run build
 ```
-

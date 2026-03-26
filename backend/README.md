@@ -9,14 +9,19 @@ This backend now includes Milestone 2 MVP APIs:
 - `POST /auth/logout`
 - `GET /models`
 - `POST /inference/jobs`
+- `POST /inference/jobs/{job_id}/cancel`
 - `GET /inference/jobs/{job_id}`
 - `GET /inference/jobs/{job_id}/image/{kind}`
 - `GET /history`
+- `DELETE /history/{job_id}`
+- `DELETE /history`
 
 Core behavior:
 
 - SQLite persistence for users, refresh-token sessions, and inference jobs
-- Async inference job lifecycle (`queued` -> `running` -> `succeeded/failed`)
+- Async inference job lifecycle (`queued` -> `running` -> `succeeded/failed/cancelled`)
+- Cooperative cancellation for queued/running jobs with explicit `cancelled` terminal state
+- History listing supports `sort_by=time|id|name` and `sort_order=asc|desc`
 - Standard API success/error envelopes with request metadata
 - External engine adapter integration (`rddc2020-cli` first engine)
 

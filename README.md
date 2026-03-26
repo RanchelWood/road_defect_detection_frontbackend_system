@@ -2,8 +2,8 @@
 
 This repository now includes a runnable Milestone 2 MVP:
 
-- FastAPI backend with auth, model registry, async inference jobs, job image endpoint, and history APIs
-- React frontend with login/register, protected pages, image inference submission/polling, result rendering, and history browsing
+- FastAPI backend with auth, model registry, async inference jobs, cancel support, job image endpoint, and history APIs
+- React frontend with login/register, protected pages, image inference submission/polling/cancel, result rendering, history browsing, and theme toggle
 - External first inference engine integration via `rddc2020` CLI adapter
 - SQLite persistence for users, refresh sessions, and inference jobs
 - Docker Compose template for single-VM style startup
@@ -45,9 +45,12 @@ npm run dev
 - `POST /auth/logout`
 - `GET /models`
 - `POST /inference/jobs`
+- `POST /inference/jobs/{job_id}/cancel`
 - `GET /inference/jobs/{job_id}`
 - `GET /inference/jobs/{job_id}/image/{kind}`
 - `GET /history`
+- `DELETE /history/{job_id}`
+- `DELETE /history`
 
 ## Launch Guide
 

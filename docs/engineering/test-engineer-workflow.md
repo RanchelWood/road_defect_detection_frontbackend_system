@@ -20,13 +20,15 @@ Primary scope:
   - register
   - login/logout
   - protected route behavior
-  - image inference submission
-  - model selection
-  - history page behavior
-  - loading/error/success states
+  - image inference submission and polling
+  - cancel running/queued inference behavior
+  - model selection persistence after refresh
+  - history page behavior (pagination, delete, sorting)
+  - loading/error/success/cancelled states
   - API failure handling
   - 401 redirect behavior
   - deep-link and navigation behavior
+  - theme toggle/persistence behavior
 - Verify user-reported issues.
 - Perform exploratory checks to find new issues.
 - Execute required automated suites for each report/retest scope.

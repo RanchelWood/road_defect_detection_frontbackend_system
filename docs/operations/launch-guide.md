@@ -86,6 +86,7 @@ From there you can:
 - Open the dashboard
 - Check backend health
 - Open inference and history pages
+- Switch light/dark theme
 
 ## Simple Verification Checklist
 
@@ -94,8 +95,12 @@ From there you can:
 3. Click `Check /health` and confirm the status becomes `ok`.
 4. Open `Inference`.
 5. Choose a model, upload an image, and submit a job.
-6. Wait for the job to move from `queued` to `running` to a final state.
-7. Open `History` and confirm the job appears there.
+6. Confirm the elapsed timer starts from `00:00` and increases while running.
+7. (Optional) Click `Cancel job` while queued/running and confirm terminal status becomes `cancelled`.
+8. For a completed job, confirm result details and annotated image rendering.
+9. Open `History` and confirm the job appears with filename title and model line.
+10. Change history sorting (`time|id|name`, asc/desc) and verify order changes.
+11. Refresh the page and verify selected model and theme preference persist.
 
 ## Optional Docker Launch
 

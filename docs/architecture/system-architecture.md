@@ -2,40 +2,41 @@
 
 ## Locked Technology Choices
 
-- Frontend: React + TypeScript + Tailwind + shadcn/ui.
-- Backend: FastAPI with modular route/service/repository layers.
+- Frontend: React + TypeScript + Tailwind.
+- Backend: FastAPI with route/service/model separation.
 - Inference integration strategy: external engine adapters (first engine is `rddc2020-cli`).
 - Data: SQLite in v1 with migration-ready patterns.
-- Media storage: local disk volume behind storage abstraction.
+- Media storage: local disk volume under backend-managed paths.
 - Deployment: Docker Compose on one VM, CPU-first default.
 
 ## Runtime Topology for Milestone 2
 
-- `frontend`: browser UI and job polling UX.
-- `backend`: auth, model registry, job lifecycle API, history API.
+- `frontend`: browser UI, auth session handling, job polling/cancel UX.
+- `backend`: auth, model listing, job lifecycle API, history API, and adapter orchestration.
 - `inference runtime` (sibling path/service): executes engine-specific command(s) for `rddc2020`.
 
-The backend never assumes one hardcoded runtime. It routes jobs through an engine adapter interface.
+The backend does not hardcode one runtime path into API contracts. Jobs resolve through an adapter interface keyed by `engine_id` and `model_id`.
 
-## Backend Module Boundaries
+## Backend Module Boundaries (Implemented)
 
-- `api`: request/response handling (`/auth`, `/models`, `/inference/jobs`, `/history`).
-- `services`: auth, model registry, job dispatcher, adapter orchestration.
-- `services/inference_engines`: one adapter module per engine.
-- `repositories`: persistence logic for users, jobs, media, history.
-- `models`: ORM entities for users, jobs, models, assets.
-- `schemas`: request/response payload definitions.
+- `backend/app/api/routes`: request/response handlers (`/auth`, `/models`, `/inference/jobs`, `/history`).
+- `backend/app/services`: business logic (auth, model registry, inference jobs, dispatch, adapter orchestration).
+- `backend/app/services/adapters`: one adapter module per inference engine (currently `rddc2020.py`).
+- `backend/app/models`: ORM entities (`User`, `RefreshTokenSession`, `InferenceJob`).
+- `backend/app/schemas`: API payload definitions.
+
+Note: a dedicated `repositories` package is not implemented yet; service classes currently perform ORM queries directly.
 
 ## Multi-Engine Extension Contract
 
-- Add new engine by implementing `InferenceEngineAdapter` interface.
-- Register engine in backend engine registry with unique `engine_id`.
-- Add model entries mapped to that `engine_id`.
-- Keep frontend and public API unchanged (engine resolved via `model_id`).
+- Add new engine by implementing the `InferenceEngineAdapter` interface.
+- Register adapter in engine registry with unique `engine_id`.
+- Add model presets that map to that `engine_id`.
+- Keep frontend request shape unchanged (`model_id` only).
 
 ## Phase Strategy
 
 - Phase 1 complete: auth + health scaffold.
-- Phase 2 (current): async image inference jobs via external `rddc2020` adapter.
-- Phase 3: hardening, observability, concurrency and reliability improvements.
-- Phase 4: real-time streaming path.
+- Phase 2 complete: async image inference jobs via external `rddc2020` adapter.
+- Phase 3 ongoing: hardening, observability, concurrency safety, and test depth.
+- Phase 4 planned: real-time streaming path.

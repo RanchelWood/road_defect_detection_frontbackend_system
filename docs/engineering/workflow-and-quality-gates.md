@@ -68,12 +68,15 @@ How this optimizes workflow:
 ## Test Strategy by Layer
 
 - Unit tests (backend): model validation, adapter argument mapping, CSV parser normalization.
-- API integration tests (backend): auth, job creation, job polling, history retrieval.
-- Engine adapter tests: success path, missing weight path, malformed output path.
+- API integration tests (backend): auth, job creation, job polling/cancel, history retrieval/mutation.
+- Engine adapter tests: success path, missing weight path, malformed output path, cancellation signal path.
 - Concurrency tests: two jobs cannot overwrite outputs.
 - Frontend unit/component tests (Vitest active):
   - timestamp normalization and elapsed timer formatting
   - API error mapping and 401 handling callbacks
+  - inference model persistence and cancel state UI
+  - history sorting/query behavior and list rendering
+  - theme persistence/toggle behavior
 - Browser E2E tests (Playwright active):
   - register/login/logout flow
   - protected route redirects
@@ -142,7 +145,7 @@ Current required gates (active now):
 - Job creation endpoint p95 under 300ms (queue operation only).
 - Job status polling endpoint p95 under 300ms.
 - Inference job timing captured per engine/model for benchmarking.
-- Every failed job logs `request_id`, `job_id`, `engine_id`, `model_id`, `error_code`.
+- Every failed or cancelled job logs `request_id`, `job_id`, `engine_id`, `model_id`, `error_code`.
 
 ## Security Checklist
 

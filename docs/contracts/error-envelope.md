@@ -1,6 +1,6 @@
 # Standard Error Envelope
 
-All backend errors must use this JSON envelope so frontend handling remains uniform.
+All backend HTTP errors use this JSON envelope so frontend handling remains uniform.
 
 ## Envelope
 
@@ -8,10 +8,10 @@ All backend errors must use this JSON envelope so frontend handling remains unif
 {
   "success": false,
   "error": {
-    "code": "ENGINE_EXECUTION_FAILED",
-    "message": "Inference engine command failed.",
+    "code": "INVALID_MODEL",
+    "message": "Model 'x' is not supported.",
     "details": {
-      "job_id": "a2b6..."
+      "field": "model_id"
     }
   },
   "meta": {
@@ -23,7 +23,7 @@ All backend errors must use this JSON envelope so frontend handling remains unif
 
 ## Required Fields
 
-- `success`: always `false` on error.
+- `success`: always `false` on HTTP error responses.
 - `error.code`: stable machine-readable code.
 - `error.message`: human-readable message for UI.
 - `meta.request_id`: request trace id for logs/support.
@@ -42,17 +42,23 @@ Auth and validation:
 - `FILE_TOO_LARGE`
 - `INVALID_MODEL`
 
-Job and engine integration:
-
-- `JOB_NOT_FOUND`
-- `JOB_NOT_READY`
-- `JOB_ALREADY_FINISHED`
-- `ENGINE_UNAVAILABLE`
-- `ENGINE_EXECUTION_FAILED`
-- `ENGINE_OUTPUT_PARSE_FAILED`
-- `ENGINE_TIMEOUT`
-
-Generic:
+Inference/job and media access:
 
 - `NOT_FOUND`
-- `INTERNAL_ERROR`
+- `INVALID_IMAGE_KIND`
+- `IMAGE_NOT_FOUND`
+
+Engine/runtime-related codes surfaced in job detail payloads (`GET /inference/jobs/{job_id}` `data.error`):
+
+- `ENGINE_NOT_RUNNABLE`
+- `ENGINE_NOT_AVAILABLE`
+- `ENGINE_RUNTIME_ERROR`
+- `ENGINE_OUTPUT_MISSING`
+- `ENGINE_OUTPUT_PARSE_ERROR`
+- `ENGINE_TIMEOUT`
+- `JOB_CANCELLED`
+
+## Notes
+
+- Cancellation is represented as terminal job status `cancelled` and is not returned as an HTTP error by the cancel endpoint.
+- Frontend should treat `401` as a session reset event and redirect to login.

@@ -33,7 +33,8 @@ Operational checks:
 
 - Backend `/health` returns 200.
 - Job creation endpoint accepts request and returns queued state.
-- Polling endpoint transitions jobs to terminal states.
+- Polling endpoint transitions jobs to terminal states (`succeeded`, `failed`, `cancelled`).
+- Cancel endpoint (`POST /inference/jobs/{job_id}/cancel`) updates queued/running jobs safely.
 - Logs show command runtime and failures with context.
 
 ## Backup and Recovery (v1)
@@ -49,7 +50,7 @@ Recovery steps:
 1. Stop services.
 2. Restore database and media/artifacts from backup.
 3. Start services.
-4. Verify auth, models, and history query.
+4. Verify auth, models, inference polling, and history queries.
 
 ## Engine Isolation Rules
 
