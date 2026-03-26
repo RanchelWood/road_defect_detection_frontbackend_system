@@ -1,4 +1,4 @@
-﻿from functools import lru_cache
+from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     rddc2020_yolov5_root: str = r"D:\road_defect_detection\rddc2020\yolov5"
     rddc2020_device: str = "cpu"
     rddc2020_timeout_seconds: int = 180
+
+    orddc2024_python_path: str = r"D:\anaconda3\envs\orddc2024\python.exe"
+    orddc2024_root: str = r"D:\road_defect_detection\orddc2024-main"
+    orddc2024_timeout_seconds: int = 180
 
     model_config = SettingsConfigDict(
         env_file=".env",

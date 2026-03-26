@@ -1,13 +1,13 @@
-﻿# Launch Guide
+# Launch Guide
 
 This guide shows the simplest way to start the Road Damage Defect System on a Windows machine with PowerShell.
 
-The project currently has two app services plus one inference runtime dependency:
+The project currently has two app services plus external inference runtime dependencies:
 - Backend: FastAPI on `http://localhost:8000`
 - Frontend: React on `http://localhost:5173`
-- External inference runtime: sibling `rddc2020` path used by backend adapter for image jobs
-
-Planned next runtime integration: `orddc2024` (not enabled yet in current code).
+- External inference runtimes:
+  - `rddc2020` (active)
+  - `orddc2024` (active second engine)
 
 ## First-Time Setup
 
@@ -36,8 +36,9 @@ Run these steps only once, or again if you delete your local environment folders
 5. Confirm external runtime prerequisites for inference.
 
     - `D:\road_defect_detection\rddc2020` exists.
-    - Required model weight files are present under `rddc2020\yolov5\weights\IMSC`.
-    - The runtime can execute inference command in its own environment.
+    - `D:\road_defect_detection\orddc2024-main` exists.
+    - ORDDC python env exists (`D:\anaconda3\envs\orddc2024\python.exe`) or is set via `.env`.
+    - Required model cache folders exist under ORDDC root (`models_ph1`, `models_ph2`).
 
 ## Every Time You Want to Run the Project
 
@@ -96,7 +97,7 @@ From there you can:
 2. Open the dashboard.
 3. Click `Check /health` and confirm the status becomes `ok`.
 4. Open `Inference`.
-5. Choose a model, upload an image, and submit a job.
+5. Choose model family + model preset, upload an image, and submit a job.
 6. Confirm the elapsed timer starts from `00:00` and increases while running.
 7. (Optional) Click `Cancel job` while queued/running and confirm terminal status becomes `cancelled`.
 8. For a completed job, confirm result details and annotated image rendering.
@@ -119,7 +120,7 @@ Then open:
 - If the backend says a port is already in use, close the old backend window and start it again.
 - If `npm run dev` fails, run `npm install` again in the `frontend` folder.
 - If login or job submission fails, confirm the backend is running on port `8000`.
-- If jobs stay queued/running unexpectedly, confirm `rddc2020` runtime path and weights are available to backend.
+- If ORDDC jobs fail quickly, verify `ORDDC2024_PYTHON_PATH`, `ORDDC2024_ROOT`, and model cache folders.
 
 ## Planned Features Notice
 

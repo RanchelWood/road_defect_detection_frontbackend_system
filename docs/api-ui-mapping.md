@@ -1,4 +1,4 @@
-﻿# API to UI Mapping Matrix
+# API to UI Mapping Matrix
 
 This matrix ties each UI screen to backend endpoints and expected response states.
 
@@ -10,6 +10,7 @@ This matrix ties each UI screen to backend endpoints and expected response state
 | Register | `POST /auth/register` | Disable form and show spinner | Route to dashboard after auth payload | Show validation field errors | N/A |
 | Dashboard | `GET /models` | Skeleton cards | Actions enabled | Non-blocking alert | If models unavailable, fallback message |
 | Image Inference Submit | `GET /models`, `POST /inference/jobs` | Disable submit and show queue state | Show `job_id` and start polling | Show API error with retry | Before first run show upload prompt |
+| Image Inference Model Family Filter (3D) | `GET /models` | Disable family/model controls while model list loads | Show grouped model options by engine family (`All/RDDC2020/ORDDC2024`) | Show model loading error | If selected family has no models, show safe fallback notice |
 | Image Inference Poll | `GET /inference/jobs/{job_id}` (polling) | Show `queued/running` status indicator + elapsed timer | Render annotated image + detections on `succeeded`; show cancel-complete state on `cancelled` | Show failure state on `failed` | N/A |
 | Image Inference Cancel | `POST /inference/jobs/{job_id}/cancel` | Disable cancel button and show `Cancelling...` | Status transitions to `cancelled` and polling stops | Show API error and keep current status | N/A |
 | History list + filters/sorting | `GET /history` | Card/list skeleton | Render job list with statuses and details (title from `original_filename`) | Show retry alert | Show no-history illustration |
@@ -38,6 +39,7 @@ This matrix ties each UI screen to backend endpoints and expected response state
 - History sorting supports `sort_by=time|id|name` and `sort_order=asc|desc`.
 - Delete-one and clear-all are account-scoped operations only and must not affect other users.
 - After delete mutations, frontend must refresh and avoid empty-page confusion by falling back to a valid page.
+- Inference model selection must support engine-family filtering with grouped options and safe fallback when a previously selected model is unavailable under the active family filter.
 
 Planned video-specific rules:
 

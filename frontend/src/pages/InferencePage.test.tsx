@@ -64,8 +64,8 @@ function makeJobDetail(status: InferenceJobStatus): InferenceJobDetail {
   return {
     job_id: "job-1",
     status,
-    model_id: "model-a",
-    engine_id: "engine-1",
+    model_id: "rddc2020-imsc-last95",
+    engine_id: "rddc2020-cli",
     created_at: "2026-03-25T00:00:00Z",
     started_at: "2026-03-25T00:01:00Z",
     finished_at: finishedAt,
@@ -81,22 +81,40 @@ beforeEach(() => {
   const modelResponse: ModelListResponse = {
     items: [
       {
-        model_id: "model-a",
-        engine_id: "engine-1",
+        model_id: "rddc2020-imsc-last95",
+        engine_id: "rddc2020-cli",
         status: "active",
-        performance_notes: null,
-        display_name: "Model A",
-        description: "Primary model",
+        performance_notes: "Stable baseline model",
+        display_name: "RDDC2020 IMSC Last95",
+        description: "RDDC2020 baseline model",
         runtime_type: "cli",
       },
       {
-        model_id: "model-b",
-        engine_id: "engine-1",
+        model_id: "rddc2020-fast",
+        engine_id: "rddc2020-cli",
         status: "active",
         performance_notes: null,
-        display_name: "Model B",
-        description: "Secondary model",
+        display_name: "RDDC2020 Fast",
+        description: "Faster RDDC2020 variant",
         runtime_type: "cli",
+      },
+      {
+        model_id: "orddc2024-main",
+        engine_id: "orddc2024-cli",
+        status: "active",
+        performance_notes: "Recommended for new uploads",
+        display_name: "ORDDC2024 Main",
+        description: "ORDDC2024 default model",
+        runtime_type: "python",
+      },
+      {
+        model_id: "orddc2024-accurate",
+        engine_id: "orddc2024-cli",
+        status: "active",
+        performance_notes: null,
+        display_name: "ORDDC2024 Accurate",
+        description: "ORDDC2024 high-accuracy model",
+        runtime_type: "python",
       },
     ],
   };
@@ -106,28 +124,52 @@ beforeEach(() => {
 });
 
 describe("InferencePage", () => {
-  it("restores selected model from localStorage and persists changes", async () => {
-    localStorage.setItem(SELECTED_MODEL_STORAGE_KEY, "model-b");
-
+  it("filters model options by engine family and keeps options grouped by engine", async () => {
     renderInferencePage();
 
     const modelSelect = (await screen.findByLabelText("Model")) as HTMLSelectElement;
-    expect(modelSelect.value).toBe("model-b");
 
-    fireEvent.change(modelSelect, { target: { value: "model-a" } });
+    const initialGroups = Array.from(modelSelect.querySelectorAll("optgroup")).map((group) => group.label);
+    expect(initialGroups).toContain("RDDC2020 (rddc2020-cli)");
+    expect(initialGroups).toContain("ORDDC2024 (orddc2024-cli)");
+
+    fireEvent.change(screen.getByLabelText("Engine family"), { target: { value: "orddc2024" } });
 
     await waitFor(() => {
-      expect(localStorage.getItem(SELECTED_MODEL_STORAGE_KEY)).toBe("model-a");
+      expect(modelSelect.value).toBe("orddc2024-main");
     });
+
+    const optionValues = Array.from(modelSelect.querySelectorAll("option")).map((option) => option.value);
+    expect(optionValues).toEqual(["orddc2024-main", "orddc2024-accurate"]);
+
+    const filteredGroups = Array.from(modelSelect.querySelectorAll("optgroup")).map((group) => group.label);
+    expect(filteredGroups).toEqual(["ORDDC2024 (orddc2024-cli)"]);
   });
 
-  it("falls back to first model when persisted model is unavailable", async () => {
-    localStorage.setItem(SELECTED_MODEL_STORAGE_KEY, "unknown-model");
+  it("restores selected model from localStorage when available", async () => {
+    localStorage.setItem(SELECTED_MODEL_STORAGE_KEY, "orddc2024-accurate");
 
     renderInferencePage();
 
     const modelSelect = (await screen.findByLabelText("Model")) as HTMLSelectElement;
-    expect(modelSelect.value).toBe("model-a");
+    expect(modelSelect.value).toBe("orddc2024-accurate");
+  });
+
+  it("falls back safely when persisted/current model is unavailable after engine filter change", async () => {
+    localStorage.setItem(SELECTED_MODEL_STORAGE_KEY, "rddc2020-fast");
+
+    renderInferencePage();
+
+    const modelSelect = (await screen.findByLabelText("Model")) as HTMLSelectElement;
+    expect(modelSelect.value).toBe("rddc2020-fast");
+
+    fireEvent.change(screen.getByLabelText("Engine family"), { target: { value: "orddc2024" } });
+
+    await waitFor(() => {
+      expect(modelSelect.value).toBe("orddc2024-main");
+    });
+
+    expect(localStorage.getItem(SELECTED_MODEL_STORAGE_KEY)).toBe("orddc2024-main");
   });
 
   it("allows cancelling a running job and shows cancelled state", async () => {

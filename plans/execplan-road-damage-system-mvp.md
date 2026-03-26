@@ -34,8 +34,12 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-25 10:35Z) Documentation synchronization pass completed: audited all project-owned Markdown files and aligned API/UX/ops/workflow docs with implemented Milestone 2 behavior.
 - [x] (2026-03-26 07:25Z) Second-engine planning assessment completed for orddc2024: consulted integration report/runtime scripts and documented the implementation blueprint (no code changes).
 - [x] (2026-03-26 10:10Z) Video-support feasibility and roadmap planning completed: consulted ORDDC2024 video report and documented async-first video contract/design updates (no code changes).
+- [x] (2026-03-26 13:20Z) Milestone 3C implemented: ORDDC2024 adapter integrated (`orddc2024-cli`), model registry expanded, config/env defaults added, and backend tests passed.
+- [x] (2026-03-26 13:40Z) Milestone 3C runtime availability verified by Test Engineer with real ORDDC image inference (`orddc2024-phase2-ensemble`) succeeding end-to-end.
+- [x] (2026-03-26 13:55Z) Milestone 3D completed: inference GUI updated for multi-engine model selection (engine-family filter + grouped model options), with unit and smoke verification passed by Test Engineer.
+- [x] (2026-03-26 14:45Z) Post-release ORDDC runtime bug fixed: adapter now passes absolute workspace paths to ORDDC scripts and surfaces traceback-tail errors; Test Engineer verified both Phase1 and Phase2 succeed end-to-end.
 - [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
-- [ ] Milestone 3C: ORDDC2024 second-engine integration using existing adapter contracts and async job APIs.
+- [x] Milestone 3C: ORDDC2024 second-engine integration using existing adapter contracts and async job APIs.
 - [ ] Milestone 4A: async video inference jobs (`create + poll + cancel`) with video-specific result metadata.
 - [ ] Milestone 4B: optional WebSocket streaming for near-real-time inference after Milestone 4A stabilizes.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
@@ -72,6 +76,15 @@ After this work, a beginner should be able to run a web system where a user can 
 
 - Observation: ORDDC2024 Phase 2 ensemble is materially faster than Phase 1 and is the better candidate for planned video workloads.
   Evidence: `VIDEO_INFERENCE_SUPPORT_REPORT.md` benchmark notes show Phase 2 lower end-to-end latency versus Phase 1 under comparable CPU conditions.
+
+- Observation: ORDDC runtime availability checks must use a real decodable image file; fake bytes produce downstream YOLO loader assertion failures.
+  Evidence: Test Engineer reproduced `AssertionError: Image Not Found ...input.jpg` when submitting placeholder bytes, and confirmed success when re-running with `Japan_012698.jpg`.
+
+- Observation: this machine's working ORDDC python runtime is `D:\anaconda3\envs\orddc2024\python.exe`.
+  Evidence: Test Engineer end-to-end Phase2 job succeeded only after aligning backend config/env to the dedicated `orddc2024` conda environment.
+
+- Observation: ORDDC scripts fail when backend passes relative `image_root/results/boxed_output` paths while `cwd` is ORDDC root.
+  Evidence: failed run logs showed `ValueError: Invalid path to images` for `media\inference_jobs\...\runtime\image_root`, which resolved after switching command args to absolute paths.
 ## Decision Log
 
 - Decision: Use external `rddc2020` command-line integration for Milestone 2 instead of implementing native inference in this repo.
@@ -181,6 +194,18 @@ After this work, a beginner should be able to run a web system where a user can 
 - Decision: Add a dedicated video-job contract document now, while keeping image-job API contracts unchanged.
   Rationale: Separates upcoming video semantics from stable image MVP behavior and keeps beginner-facing docs clear.
   Date/Author: 2026-03-26 / Codex
+
+- Decision: Default ORDDC runtime python path now targets `D:\anaconda3\envs\orddc2024\python.exe` with overridable env var (`ORDDC2024_PYTHON_PATH`).
+  Rationale: User-confirmed dedicated ORDDC environment reduces dependency mismatch risk and enabled successful real-image execution.
+  Date/Author: 2026-03-26 / Codex
+
+- Decision: Inference GUI now includes an engine-family filter and grouped model selector as Milestone 3D baseline UX.
+  Rationale: Multi-engine model inventory is now active and needs clearer, beginner-friendly selection controls.
+  Date/Author: 2026-03-26 / Codex
+
+- Decision: ORDDC adapter command arguments must use absolute paths and runtime error summarization must prioritize traceback tails over warning prefixes.
+  Rationale: Prevents path-resolution failures in real deployments and exposes actionable root-cause errors in UI/API payloads.
+  Date/Author: 2026-03-26 / Codex
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -223,6 +248,14 @@ Second-engine planning outcome (2026-03-26): ORDDC2024 runtime/report/codebase w
 
 Video-support planning outcome (2026-03-26): ORDDC2024 video feasibility was assessed from local report evidence; team will implement async video jobs first (Phase 4A) and keep WebSocket streaming as a follow-up (Phase 4B), with ORDDC2024 Phase 2 as default video model candidate.
 
+Milestone 3C implementation outcome (2026-03-26): backend now registers `orddc2024-cli` as second engine, exposes Phase1/Phase2 presets in `/models`, and executes ORDDC image jobs through the existing async `/inference/jobs` lifecycle with normalized outputs.
+
+Milestone 3C verification outcome (2026-03-26): Test Engineer confirmed real-image ORDDC Phase2 inference success via API (`queued -> succeeded`), with result payload including detections and image refs.
+
+Milestone 3D outcome (2026-03-26): inference UI now includes engine-family filtering and grouped multi-engine model options with safe persisted-selection fallback behavior; Test Engineer passed unit and smoke verification.
+
+Bugfix outcome (2026-03-26): ORDDC runtime failure after ~30s was resolved by switching adapter command paths to absolute and improving runtime error-tail extraction; Test Engineer retest passed for both `orddc2024-phase1-ensemble` and `orddc2024-phase2-ensemble`.
+
 ## Context and Orientation
 
 Current state includes a working Milestone 2 MVP in `backend/` and `frontend/` (auth, models, async inference jobs, authenticated job-image retrieval, and history). The first inference runtime integrated is the sibling directory `D:\road_defect_detection\rddc2020`, with its primary script at `D:\road_defect_detection\rddc2020\yolov5\detect.py`.
@@ -241,7 +274,9 @@ Milestone 2C implements persistence and retrieval. Store job status transitions 
 
 Milestone 2D is complete. Frontend now uses async job create + polling flow, renders queued/running/succeeded/failed/cancelled states, displays result metadata/detections, and provides history navigation with filters and job deep-links.
 
-Milestone 3C (planned) adds the second engine (orddc2024-cli) using the existing adapter contract and async job APIs. Phase 1 and Phase 2 ORDDC scripts will be exposed as model presets so frontend/API shape remains unchanged.
+Milestone 3C is complete. The second engine (`orddc2024-cli`) is integrated through the existing adapter contract and async job APIs, with Phase 1 and Phase 2 ORDDC scripts exposed as model presets without frontend/API contract changes.
+
+Milestone 3D is complete. Frontend inference UX now supports multi-engine model selection with engine-family filtering and grouped options.
 
 Milestone 4A (planned) adds async video inference jobs (`create + poll + cancel`) reusing current lifecycle patterns and history model with video-specific result metadata.
 
@@ -361,3 +396,6 @@ Plan change note (2026-03-25 / Codex): Audited all project-owned Markdown files 
 
 Plan change note (2026-03-26 / Codex): Added ORDDC2024 second-engine integration planning docs and updated ExecPlan decisions/discoveries for Milestone 3C execution readiness.
 Plan change note (2026-03-26 / Codex): Added video-support feasibility decisions and synced architecture/contracts/UX docs for planned Milestone 4A (async video jobs) and 4B (WebSocket streaming).
+Plan change note (2026-03-26 / Codex): Implemented Milestone 3C backend integration (`orddc2024` adapter + config + registry + tests) and validated real-image ORDDC runtime success through Test Engineer evidence.
+Plan change note (2026-03-26 / Codex): Implemented Milestone 3D frontend multi-engine UX (engine-family selector + grouped models) and closed with Test Engineer unit/smoke verification.
+Plan change note (2026-03-26 / Codex): Closed ORDDC post-release runtime failure by fixing absolute path command args and traceback-tail error reporting; verified Phase1/Phase2 success with Test Engineer evidence.

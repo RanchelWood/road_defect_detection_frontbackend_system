@@ -23,7 +23,7 @@ def test_models_requires_authentication(client):
     assert response.json()["error"]["code"] == "AUTH_TOKEN_INVALID"
 
 
-def test_models_returns_rddc2020_presets(client):
+def test_models_returns_rddc2020_and_orddc2024_presets(client):
     headers = _register_and_auth(client)
 
     response = client.get("/models", headers=headers)
@@ -32,9 +32,16 @@ def test_models_returns_rddc2020_presets(client):
     payload = response.json()
     assert payload["success"] is True
     items = payload["data"]["items"]
-    assert len(items) == 3
-    assert any(item["model_id"] == "rddc2020-imsc-last95" for item in items)
-    assert all(item["engine_id"] == "rddc2020-cli" for item in items)
+
+    model_ids = {item["model_id"] for item in items}
+    assert "rddc2020-imsc-last95" in model_ids
+    assert "orddc2024-phase1-ensemble" in model_ids
+    assert "orddc2024-phase2-ensemble" in model_ids
+
+    engine_ids = {item["engine_id"] for item in items}
+    assert "rddc2020-cli" in engine_ids
+    assert "orddc2024-cli" in engine_ids
+
     assert all("status" in item for item in items)
     assert all("performance_notes" in item for item in items)
 
@@ -54,6 +61,21 @@ def test_create_inference_job_returns_queued_job(client):
     assert payload["success"] is True
     assert payload["data"]["status"] == "queued"
     assert payload["data"]["engine_id"] == "rddc2020-cli"
+def test_create_inference_job_returns_queued_job_for_orddc2024_model(client):
+    headers = _register_and_auth(client)
+
+    response = client.post(
+        "/inference/jobs",
+        headers=headers,
+        data={"model_id": "orddc2024-phase1-ensemble"},
+        files={"image": ("road.jpg", b"fake-image-data", "image/jpeg")},
+    )
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["data"]["status"] == "queued"
+    assert payload["data"]["engine_id"] == "orddc2024-cli"
 
 
 def test_create_inference_job_validates_model_id(client):
@@ -324,3 +346,5 @@ def test_unsupported_image_kind_returns_clear_error(client):
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "INVALID_IMAGE_KIND"
+
+

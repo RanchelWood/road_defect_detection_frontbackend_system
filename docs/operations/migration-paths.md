@@ -1,4 +1,4 @@
-﻿# Migration Paths
+# Migration Paths
 
 This document captures upgrade paths from MVP defaults to scalable multi-engine operations.
 
@@ -22,16 +22,17 @@ This document captures upgrade paths from MVP defaults to scalable multi-engine 
 - Benchmark and publish latency/throughput changes.
 - Keep CPU fallback.
 
-## 4) Single External Engine -> Multiple Inference Engines (Current Next Step)
+## 4) Single External Engine -> Multiple Inference Engines (Implemented)
 
-- Preserve `engine_id` + `model_id` contract in registry.
-- Implement additional adapters under common engine interface (next target: `orddc2024-cli`).
-- Add per-engine health and capability metadata.
-- Keep frontend request shape stable (`model_id` only).
+- `engine_id` + `model_id` contract preserved in registry.
+- Active adapters:
+  - `rddc2020-cli`
+  - `orddc2024-cli`
+- Frontend request shape remains stable (`model_id` only).
 
 ## 5) Local Sibling Runtime -> Managed Inference Service
 
-- Move from local path (`D:\road_defect_detection\rddc2020`) to managed sidecar/remote service.
+- Move from local path runtimes to managed sidecar/remote service.
 - Keep adapter interface; swap runtime transport (`cli` -> `http/grpc`).
 - Preserve job and history schemas to avoid data migration churn.
 

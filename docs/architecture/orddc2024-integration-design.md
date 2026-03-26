@@ -1,6 +1,6 @@
-﻿# ORDDC2024 Second-Engine Integration Design (Planning Only)
+# ORDDC2024 Second-Engine Integration Design (Planning Only)
 
-Status: planning approved, code implementation not started.
+Status: Milestone 3C baseline implemented; hardening and optimization pending.
 
 Date: 2026-03-26.
 
@@ -151,3 +151,19 @@ See:
 
 - `docs/architecture/video-support-design.md`
 - `docs/contracts/video-inference-job-contract.md`
+## Implementation Status Update (2026-03-26)
+
+Completed in repository code:
+
+- Added `orddc2024` adapter module and engine registration (`orddc2024-cli`).
+- Added model presets:
+  - `orddc2024-phase1-ensemble`
+  - `orddc2024-phase2-ensemble`
+- Added ORDDC runtime config defaults and `.env.example` keys.
+- Added backend adapter tests and model-list/inference-job contract tests.
+- Verified end-to-end API execution with a real image file via Test Engineer evidence (`queued -> succeeded`).
+
+Remaining as follow-up:
+
+- Additional runtime hardening and richer diagnostic logging.
+- Broader integration regression and concurrency checks.

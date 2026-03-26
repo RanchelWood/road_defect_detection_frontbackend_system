@@ -11,6 +11,22 @@ import type { InferenceJobDetail, InferenceJobStatus, InferenceJobSubmission, Mo
 
 const POLL_INTERVAL_MS = 2000;
 const SELECTED_MODEL_STORAGE_KEY = "road_defect_selected_model_id";
+
+type EngineFamily = "all" | "rddc2020" | "orddc2024";
+type ResolvedEngineFamily = Exclude<EngineFamily, "all"> | "other";
+
+type GroupedModels = {
+  key: string;
+  label: string;
+  items: ModelSummary[];
+};
+
+const ENGINE_FAMILY_OPTIONS: Array<{ value: EngineFamily; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "rddc2020", label: "RDDC2020" },
+  { value: "orddc2024", label: "ORDDC2024" },
+];
+
 const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
@@ -61,6 +77,40 @@ function getPersistedModelId(): string {
   }
 }
 
+function getEngineFamilyFromModel(model: ModelSummary): ResolvedEngineFamily {
+  const identity = `${model.model_id} ${model.engine_id}`.toLowerCase();
+
+  if (identity.includes("orddc2024")) {
+    return "orddc2024";
+  }
+
+  if (identity.includes("rddc2020")) {
+    return "rddc2020";
+  }
+
+  return "other";
+}
+
+function getEngineFamilyLabel(engineFamily: ResolvedEngineFamily) {
+  if (engineFamily === "orddc2024") {
+    return "ORDDC2024";
+  }
+
+  if (engineFamily === "rddc2020") {
+    return "RDDC2020";
+  }
+
+  return "Other";
+}
+
+function getEngineFamilyFilterLabel(engineFamily: EngineFamily) {
+  if (engineFamily === "all") {
+    return "All";
+  }
+
+  return getEngineFamilyLabel(engineFamily);
+}
+
 export function InferencePage() {
   const { authState } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -69,6 +119,8 @@ export function InferencePage() {
   const [modelsLoading, setModelsLoading] = useState(true);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string>(() => getPersistedModelId());
+  const [selectedEngineFamily, setSelectedEngineFamily] = useState<EngineFamily>("all");
+  const [modelSelectionNotice, setModelSelectionNotice] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
@@ -146,16 +198,6 @@ export function InferencePage() {
     try {
       const response = await listModels(authState.accessToken);
       setModels(response.items);
-
-      const persistedModelId = getPersistedModelId();
-      setSelectedModelId((current) => {
-        const preferredModelId = current || persistedModelId;
-        if (preferredModelId && response.items.some((model) => model.model_id === preferredModelId)) {
-          return preferredModelId;
-        }
-
-        return response.items[0]?.model_id ?? "";
-      });
     } catch (err) {
       if (err instanceof ApiClientError) {
         setModelsError(err.message);
@@ -206,11 +248,79 @@ export function InferencePage() {
     void loadModels();
   }, [loadModels]);
 
+  const filteredModels = useMemo(() => {
+    if (selectedEngineFamily === "all") {
+      return models;
+    }
+
+    return models.filter((model) => getEngineFamilyFromModel(model) === selectedEngineFamily);
+  }, [models, selectedEngineFamily]);
+
+  const groupedFilteredModels = useMemo<GroupedModels[]>(() => {
+    const groups = new Map<string, GroupedModels>();
+
+    for (const model of filteredModels) {
+      const existingGroup = groups.get(model.engine_id);
+      if (existingGroup) {
+        existingGroup.items.push(model);
+        continue;
+      }
+
+      const engineFamily = getEngineFamilyFromModel(model);
+      groups.set(model.engine_id, {
+        key: model.engine_id,
+        label: `${getEngineFamilyLabel(engineFamily)} (${model.engine_id})`,
+        items: [model],
+      });
+    }
+
+    return Array.from(groups.values());
+  }, [filteredModels]);
+
+  useEffect(() => {
+    if (models.length === 0) {
+      if (!modelsLoading) {
+        setSelectedModelId("");
+        setModelSelectionNotice(`No models are available under ${getEngineFamilyFilterLabel(selectedEngineFamily)}.`);
+      } else {
+        setModelSelectionNotice(null);
+      }
+      return;
+    }
+
+    const selectedModelStillVisible = filteredModels.some((model) => model.model_id === selectedModelId);
+    if (selectedModelId && selectedModelStillVisible) {
+      setModelSelectionNotice(null);
+      return;
+    }
+
+    const fallbackModel = filteredModels[0] ?? null;
+    const nextModelId = fallbackModel?.model_id ?? "";
+
+    if (selectedModelId && fallbackModel) {
+      const nextEngineLabel = getEngineFamilyFilterLabel(selectedEngineFamily);
+      setModelSelectionNotice(
+        `Selected model is unavailable under ${nextEngineLabel}. Switched to ${fallbackModel.display_name}.`,
+      );
+    } else if (selectedModelId && !fallbackModel) {
+      setModelSelectionNotice(
+        `Selected model is unavailable under ${getEngineFamilyFilterLabel(selectedEngineFamily)}. No models match this filter.`,
+      );
+    } else if (!selectedModelId && !fallbackModel && !modelsLoading) {
+      setModelSelectionNotice(`No models are available under ${getEngineFamilyFilterLabel(selectedEngineFamily)}.`);
+    } else {
+      setModelSelectionNotice(null);
+    }
+
+    setSelectedModelId(nextModelId);
+  }, [filteredModels, models.length, modelsLoading, selectedEngineFamily, selectedModelId]);
+
   useEffect(() => {
     if (!jobIdFromRoute) {
       activeJobIdRef.current = null;
       pollingInFlightRef.current = false;
       setJobDetail(null);
+      setModelSelectionNotice(null);
       setTrackedSubmission(null);
       setJobError(null);
       setCancellingJob(false);
@@ -374,6 +484,7 @@ export function InferencePage() {
     setSubmissionError(null);
     setJobError(null);
     setJobDetail(null);
+    setModelSelectionNotice(null);
 
     try {
       const response = await createInferenceJob(authState.accessToken, {
@@ -430,6 +541,7 @@ export function InferencePage() {
     setJobError(null);
     setTrackedSubmission(null);
     setJobDetail(null);
+    setModelSelectionNotice(null);
     setCancellingJob(false);
     previousStatusRef.current = null;
     finalSyncJobIdRef.current = null;
@@ -440,6 +552,7 @@ export function InferencePage() {
   const resolvedModelId = (jobDetail?.model_id ?? trackedSubmission?.model_id ?? selectedModelId) || "Not selected";
   const resolvedEngineId = jobDetail?.engine_id ?? trackedSubmission?.engine_id ?? "Not available";
   const selectedModel = models.find((model) => model.model_id === selectedModelId) ?? null;
+  const selectedModelEngineFamily = selectedModel ? getEngineFamilyLabel(getEngineFamilyFromModel(selectedModel)) : null;
   const elapsedAnchorLabel = jobDetail?.started_at ? "started_at" : jobDetail?.created_at ? "created_at" : null;
 
   return (
@@ -467,33 +580,67 @@ export function InferencePage() {
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <label className="block text-sm font-medium text-slate-700">
-              Model
+              Engine family
               <select
                 className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2"
-                disabled={modelsLoading || submitting || models.length === 0}
-                onChange={(event) => setSelectedModelId(event.target.value)}
-                value={selectedModelId}
+                disabled={modelsLoading || submitting}
+                onChange={(event) => {
+                  setModelSelectionNotice(null);
+                  setSelectedEngineFamily(event.target.value as EngineFamily);
+                }}
+                value={selectedEngineFamily}
               >
-                {modelsLoading ? <option>Loading models...</option> : null}
-                {!modelsLoading && models.length === 0 ? <option>No models available</option> : null}
-                {models.map((model) => (
-                  <option key={model.model_id} value={model.model_id}>
-                    {model.display_name} ({model.model_id})
+                {ENGINE_FAMILY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
             </label>
 
+            <label className="block text-sm font-medium text-slate-700">
+              Model
+              <select
+                className="mt-1 w-full rounded-md border border-slate-300 bg-white px-3 py-2"
+                disabled={modelsLoading || submitting || filteredModels.length === 0}
+                onChange={(event) => {
+                  setSelectedModelId(event.target.value);
+                }}
+                value={selectedModelId}
+              >
+                {modelsLoading ? <option>Loading models...</option> : null}
+                {!modelsLoading && filteredModels.length === 0 ? <option>No models for selected engine family</option> : null}
+                {groupedFilteredModels.map((group) => (
+                  <optgroup key={group.key} label={group.label}>
+                    {group.items.map((model) => (
+                      <option key={model.model_id} value={model.model_id}>
+                        {model.display_name} ({model.model_id})
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+
+            {modelSelectionNotice ? (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                {modelSelectionNotice}
+              </p>
+            ) : null}
+
             {selectedModel ? (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                <p className="font-medium text-slate-900">{selectedModel.description}</p>
+                <p className="text-sm font-semibold text-slate-900">{selectedModel.display_name}</p>
+                <p className="mt-1 text-xs text-slate-500">Model ID: {selectedModel.model_id}</p>
+                <p className="mt-2 text-sm text-slate-700">{selectedModel.description}</p>
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                  <span>Engine family: {selectedModelEngineFamily}</span>
                   <span>Engine: {selectedModel.engine_id}</span>
                   <span>Runtime: {selectedModel.runtime_type}</span>
                   <span>Status: {selectedModel.status}</span>
                 </div>
                 {selectedModel.performance_notes ? (
-                  <p className="mt-2 text-xs text-slate-500">{selectedModel.performance_notes}</p>
+                  <p className="mt-2 text-xs text-slate-500">Performance note: {selectedModel.performance_notes}</p>
                 ) : null}
               </div>
             ) : null}

@@ -1,6 +1,6 @@
 # Backend (FastAPI)
 
-This backend now includes Milestone 2 MVP APIs:
+This backend now includes Milestone 3C multi-engine MVP APIs:
 
 - `GET /health`
 - `POST /auth/register`
@@ -23,7 +23,15 @@ Core behavior:
 - Cooperative cancellation for queued/running jobs with explicit `cancelled` terminal state
 - History listing supports `sort_by=time|id|name` and `sort_order=asc|desc`
 - Standard API success/error envelopes with request metadata
-- External engine adapter integration (`rddc2020-cli` first engine)
+- External engine adapter integration:
+  - `rddc2020-cli`
+  - `orddc2024-cli` (second engine)
+
+## Runtime Notes (ORDDC2024)
+
+- Default ORDDC python path: `D:\anaconda3\envs\orddc2024\python.exe`
+- Default ORDDC root path: `D:\road_defect_detection\orddc2024-main`
+- Required ORDDC cache folders: `models_ph1`, `models_ph2`
 
 ## Local Run
 

@@ -1,4 +1,4 @@
-﻿# Model Registry Contract
+# Model Registry Contract
 
 The model registry is the single source of truth for selectable model presets across all inference engines and job types.
 
@@ -12,17 +12,17 @@ The model registry is the single source of truth for selectable model presets ac
 ## Current Implementation
 
 - Registry is assembled at runtime from registered adapters.
-- First active engine: `rddc2020-cli`.
-- First preset set:
+- Active engines:
+  - `rddc2020-cli`
+  - `orddc2024-cli`
+- Active preset set includes:
   - `rddc2020-imsc-last95`
   - `rddc2020-imsc-ensemble-test1`
   - `rddc2020-imsc-ensemble-test2`
-
-Planned next engine/presets (design complete, code pending):
-
-- `orddc2024-cli`
   - `orddc2024-phase1-ensemble`
-  - `orddc2024-phase2-ensemble` (planned default for video jobs)
+  - `orddc2024-phase2-ensemble`
+
+Planned video default model: `orddc2024-phase2-ensemble`.
 
 ## Data Contract
 

@@ -1,4 +1,4 @@
-﻿# Low-Fidelity Wireframes and User Flows
+# Low-Fidelity Wireframes and User Flows
 
 These are low-fidelity planning artifacts aligned to current MVP behavior and planned post-MVP video support.
 
@@ -69,7 +69,8 @@ flowchart LR
 ### 4) Image Inference Page (Async Job Flow)
 
     +--------------------------------------------------------------------------------+
-    | Model: [ rddc2020-imsc-last95 v ]                                              |
+    | Engine family: [ All | RDDC2020 | ORDDC2024 ]                                  |
+    | Model: [ rddc2020-imsc-last95 v ] (grouped by engine)                          |
     | Upload Image: [ Choose File ]                                                   |
     | [ Submit Job ]                                                                  |
     |--------------------------------------------------------------------------------|
@@ -130,6 +131,7 @@ States:
 - Every failure state must show a readable error with retry guidance.
 - Cancellation must have a dedicated state message distinct from failure.
 - Theme preference should persist across login/register/protected pages.
+- Engine-family filtering must keep model selection understandable for beginners (clear grouping + safe fallback notice).
 
 Planned video UX rules:
 
