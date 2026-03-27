@@ -57,14 +57,6 @@ function formatDuration(durationMs: number | undefined) {
   return `${(durationMs / 1000).toFixed(2)} s`;
 }
 
-function formatConfidence(confidence: number | null) {
-  if (confidence === null) {
-    return "N/A";
-  }
-
-  return `${(confidence * 100).toFixed(1)}%`;
-}
-
 function getJobStatus(jobDetail: InferenceJobDetail | null, submission: InferenceJobSubmission | null) {
   return jobDetail?.status ?? submission?.status ?? null;
 }
@@ -877,7 +869,6 @@ export function InferencePage() {
                     <thead>
                       <tr className="text-left text-slate-500">
                         <th className="pb-3 pr-4 font-medium">Label</th>
-                        <th className="pb-3 pr-4 font-medium">Confidence</th>
                         <th className="pb-3 pr-4 font-medium">x1</th>
                         <th className="pb-3 pr-4 font-medium">y1</th>
                         <th className="pb-3 pr-4 font-medium">x2</th>
@@ -888,7 +879,6 @@ export function InferencePage() {
                       {jobDetail.result.detections.map((detection, index) => (
                         <tr key={`${detection.label}-${index}`}>
                           <td className="py-3 pr-4 font-medium text-slate-900">{detection.label}</td>
-                          <td className="py-3 pr-4">{formatConfidence(detection.confidence)}</td>
                           <td className="py-3 pr-4">{detection.bbox.x1.toFixed(1)}</td>
                           <td className="py-3 pr-4">{detection.bbox.y1.toFixed(1)}</td>
                           <td className="py-3 pr-4">{detection.bbox.x2.toFixed(1)}</td>
@@ -906,3 +896,4 @@ export function InferencePage() {
     </AppShell>
   );
 }
+

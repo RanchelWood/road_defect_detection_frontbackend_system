@@ -189,5 +189,5 @@ test("@smoke inference submit auto-updates to succeeded and renders result", asy
   await expect(page.getByText("Result metadata")).toBeVisible({ timeout: 10000 });
   await expect(page.getByRole("heading", { name: "Detections" })).toBeVisible();
   await expect(page.getByText("D00")).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: "Confidence" })).toHaveCount(0);
 });
-

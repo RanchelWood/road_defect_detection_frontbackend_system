@@ -114,6 +114,7 @@ describe("HistoryPage", () => {
     });
 
     expect(screen.getByText("Model: IMSC Last95")).toBeInTheDocument();
+    expect(screen.queryByText("Max confidence")).not.toBeInTheDocument();
   });
 
   it("uses default page size/sort and resets to page 1 when page size changes", async () => {

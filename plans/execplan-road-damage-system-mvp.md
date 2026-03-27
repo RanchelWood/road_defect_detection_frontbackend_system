@@ -39,6 +39,7 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-26 13:55Z) Milestone 3D completed: inference GUI updated for multi-engine model selection (engine-family filter + grouped model options), with unit and smoke verification passed by Test Engineer.
 - [x] (2026-03-26 14:45Z) Post-release ORDDC runtime bug fixed: adapter now passes absolute workspace paths to ORDDC scripts and surfaces traceback-tail errors; Test Engineer verified both Phase1 and Phase2 succeed end-to-end.
 - [x] (2026-03-27 09:08Z) Milestone 3 hardening completed: strict image-content validation, structured inference lifecycle logging, atomic queued-claim/success-finalization guards, and backend integration regressions updated with passing Test Engineer evidence (`28 passed`).
+- [x] (2026-03-27 09:46Z) Confidence UI policy implemented: confidence/max-confidence display removed from frontend inference/history views, while backend confidence field is retained for forward compatibility.
 - [x] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [x] Milestone 3C: ORDDC2024 second-engine integration using existing adapter contracts and async job APIs.
 - [ ] Milestone 4A: async video inference jobs (`create + poll + cancel`) with video-specific result metadata.
@@ -89,6 +90,9 @@ After this work, a beginner should be able to run a web system where a user can 
 
 - Observation: local full-backend pytest runs that use tmp-path fixtures can fail in this Codex runtime due Windows temp-directory permission constraints, even when Milestone 3 hardening tests pass.
   Evidence: Test Engineer runs showed targeted suites passing (`28 passed`) while full suite errored on `PermissionError: [WinError 5]` under `.pytest_tmp_run/pytest-of-18926`.
+
+- Observation: both active image engines currently emit integration CSV outputs as class+bbox tuples without confidence values.
+  Evidence: `D:\road_defect_detection\rddc2020\yolov5\detect.py` and ORDDC phase scripts write CSV rows without confidence fields, and adapters normalize detections with `confidence: null`.
 ## Decision Log
 
 - Decision: Use external `rddc2020` command-line integration for Milestone 2 instead of implementing native inference in this repo.
@@ -270,6 +274,8 @@ Bugfix outcome (2026-03-26): ORDDC runtime failure after ~30s was resolved by sw
 
 Milestone 3 hardening outcome (2026-03-27): backend now rejects invalid/mismatched image bytes (`INVALID_IMAGE_CONTENT`), emits structured inference lifecycle logs (`job_id/model_id/engine_id/status/error_code/duration`), and enforces atomic queued-claim with cancellation-safe success finalization; Test Engineer verified milestone suites (`test_inference_jobs`, `test_inference_execution`, `test_history`) passing (`28 passed`).
 
+Confidence UI outcome (2026-03-27): inference detection and history cards no longer render confidence/max-confidence in frontend; backend confidence fields remain unchanged for future engine upgrades.
+
 ## Context and Orientation
 
 Current state includes a working Milestone 2 MVP in `backend/` and `frontend/` (auth, models, async inference jobs, authenticated job-image retrieval, and history). The first inference runtime integrated is the sibling directory `D:\road_defect_detection\rddc2020`, with its primary script at `D:\road_defect_detection\rddc2020\yolov5\detect.py`.
@@ -414,4 +420,5 @@ Plan change note (2026-03-26 / Codex): Implemented Milestone 3C backend integrat
 Plan change note (2026-03-26 / Codex): Implemented Milestone 3D frontend multi-engine UX (engine-family selector + grouped models) and closed with Test Engineer unit/smoke verification.
 Plan change note (2026-03-26 / Codex): Closed ORDDC post-release runtime failure by fixing absolute path command args and traceback-tail error reporting; verified Phase1/Phase2 success with Test Engineer evidence.
 Plan change note (2026-03-27 / Codex): Implemented Milestone 3 hardening (upload content validation, structured job logging, atomic job claim/finalization safety) and aligned backend integration tests with Test Engineer verification evidence.
+Plan change note (2026-03-27 / Codex): Applied UI-only confidence policy (removed confidence/max-confidence display in frontend, retained backend confidence contract) and synchronized docs.
 

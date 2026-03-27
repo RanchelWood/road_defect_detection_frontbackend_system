@@ -11,7 +11,7 @@ This matrix ties each UI screen to backend endpoints and expected response state
 | Dashboard | `GET /models` | Skeleton cards | Actions enabled | Non-blocking alert | If models unavailable, fallback message |
 | Image Inference Submit | `GET /models`, `POST /inference/jobs` | Disable submit and show queue state | Show `job_id` and start polling | Show API error with retry | Before first run show upload prompt |
 | Image Inference Model Family Filter (3D) | `GET /models` | Disable family/model controls while model list loads | Show grouped model options by engine family (`All/RDDC2020/ORDDC2024`) | Show model loading error | If selected family has no models, show safe fallback notice |
-| Image Inference Poll | `GET /inference/jobs/{job_id}` (polling) | Show `queued/running` status indicator + elapsed timer | Render annotated image + detections on `succeeded`; show cancel-complete state on `cancelled` | Show failure state on `failed` | N/A |
+| Image Inference Poll | `GET /inference/jobs/{job_id}` (polling) | Show `queued/running` status indicator + elapsed timer | Render annotated image + detections on `succeeded`; confidence is hidden in UI for current engines, while backend field remains optional for future engines | Show failure state on `failed` | N/A |
 | Image Inference Cancel | `POST /inference/jobs/{job_id}/cancel` | Disable cancel button and show `Cancelling...` | Status transitions to `cancelled` and polling stops | Show API error and keep current status | N/A |
 | History list + filters/sorting | `GET /history` | Card/list skeleton | Render job list with statuses and details (title from `original_filename`) | Show retry alert | Show no-history illustration |
 | History delete one | `DELETE /history/{job_id}` + follow-up `GET /history` | Disable delete buttons and show deleting state | Item removed and totals/pagination refreshed | Show API error message and keep list stable | If last item deleted, empty state appears |
@@ -40,9 +40,11 @@ This matrix ties each UI screen to backend endpoints and expected response state
 - Delete-one and clear-all are account-scoped operations only and must not affect other users.
 - After delete mutations, frontend must refresh and avoid empty-page confusion by falling back to a valid page.
 - Inference model selection must support engine-family filtering with grouped options and safe fallback when a previously selected model is unavailable under the active family filter.
+- Confidence display is intentionally hidden in MVP UI because current engine CSV outputs do not provide reliable confidence values; backend confidence field remains for forward compatibility.
 
 Planned video-specific rules:
 
 - Video submit must validate file type/size before request send.
 - Video jobs must show phase statuses (`preparing_frames`, `running`, `rendering`) distinctly.
 - Phase 4B streaming must fall back to async video jobs when websocket is unavailable.
+

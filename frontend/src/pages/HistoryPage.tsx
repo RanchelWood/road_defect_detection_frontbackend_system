@@ -31,14 +31,6 @@ function formatTimestamp(value: string) {
   return dateTimeFormatter.format(parsed);
 }
 
-function formatConfidence(value: number | undefined) {
-  if (typeof value !== "number") {
-    return "N/A";
-  }
-
-  return `${(value * 100).toFixed(1)}%`;
-}
-
 function parsePage(rawPage: string | null) {
   const parsed = Number(rawPage);
   if (!Number.isFinite(parsed) || parsed < 1) {
@@ -419,10 +411,7 @@ export function HistoryPage() {
                   {typeof item.defect_count === "number" ? item.defect_count : "Not available"}
                 </p>
               </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Max confidence</p>
-                <p className="mt-2 text-sm text-slate-900">{formatConfidence(item.max_confidence)}</p>
-              </div>
+
               <div className="rounded-xl bg-slate-50 p-4">
                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Status</p>
                 <p className="mt-2 text-sm text-slate-900 capitalize">{item.status}</p>
@@ -606,3 +595,4 @@ export function HistoryPage() {
     </AppShell>
   );
 }
+
