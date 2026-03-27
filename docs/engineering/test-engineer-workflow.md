@@ -71,8 +71,11 @@ Baseline command matrix:
   - `cd frontend && npm run test:e2e:smoke` when auth/navigation/inference/history UI is affected
 - Backend-only bug:
   - `cd backend && .\.venv\Scripts\python.exe -m pytest tests`
+  - If temp-permission errors appear, rerun with explicit base temp: `cd backend && .\.venv\Scripts\python.exe -m pytest tests --basetemp=.pytest_tmp_run`
+  - If environment still blocks full suite, run scope-targeted backend suites required by the ticket and include blocker evidence.
 - Integration or unclear bug:
   - `cd backend && .\.venv\Scripts\python.exe -m pytest tests`
+  - fallback when temp-permission blocked: `cd backend && .\.venv\Scripts\python.exe -m pytest <targeted suites> --basetemp=.pytest_tmp_run`
   - `cd frontend && npm run test:unit`
   - `cd frontend && npm run test:e2e:smoke`
 
@@ -211,3 +214,4 @@ Verified At:
 - Require bug ID in every engineer update.
 - Prefer small bug-fix batches and immediate retest handoff.
 - Keep reports concrete and reproducible; avoid vague statements.
+

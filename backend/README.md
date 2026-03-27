@@ -20,6 +20,8 @@ Core behavior:
 
 - SQLite persistence for users, refresh-token sessions, and inference jobs
 - Async inference job lifecycle (`queued` -> `running` -> `succeeded/failed/cancelled`)
+- Concurrency safety guard: atomic queued-claim + cancellation-safe success finalization
+- Upload hardening: extension + size + image-signature validation (`INVALID_IMAGE_CONTENT` on mismatch)
 - Cooperative cancellation for queued/running jobs with explicit `cancelled` terminal state
 - History listing supports `sort_by=time|id|name` and `sort_order=asc|desc`
 - Standard API success/error envelopes with request metadata
@@ -70,3 +72,4 @@ Expected response body shape:
 cd backend
 .\.venv\Scripts\python.exe -m pytest tests
 ```
+

@@ -35,11 +35,12 @@ Operational checks:
 
 - Backend `/health` returns 200.
 - `/models` includes both engine families.
-- Job creation endpoint accepts request and returns queued state.
+- Job creation endpoint accepts valid image request and returns queued state.
+- Invalid or mismatched image bytes are rejected with `INVALID_IMAGE_CONTENT`.
 - Polling endpoint transitions jobs to terminal states (`succeeded`, `failed`, `cancelled`).
 - Cancel endpoint (`POST /inference/jobs/{job_id}/cancel`) updates queued/running jobs safely.
 - Multi-engine safety: engine-specific runtime failures are isolated by adapter and should not block other engine models.
-- Logs show command runtime and failures with context.
+- Logs show lifecycle events (`inference_job_created/claimed/succeeded/failed/cancelled`) with request/job context.
 
 ## Backup and Recovery (v1)
 
@@ -112,3 +113,9 @@ Use this checklist before enabling async video jobs:
 - `docs/architecture/orddc2024-integration-design.md`
 - `docs/architecture/video-support-design.md`
 - `docs/contracts/video-inference-job-contract.md`
+
+## Known local test-run caveat
+
+- In this Codex desktop runtime, full backend `pytest tests` runs that rely on tmp-path fixtures may hit `PermissionError: [WinError 5]` under pytest temp roots.
+- Team workflow gate for Milestone 3 uses the targeted backend suites (`test_inference_jobs`, `test_inference_execution`, `test_history`) as the verification baseline when this environment constraint appears.
+

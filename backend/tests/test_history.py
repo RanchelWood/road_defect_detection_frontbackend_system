@@ -4,6 +4,10 @@ from uuid import uuid4
 
 from app.models.inference_job import InferenceJob
 
+VALID_IMAGE_BYTES = bytes.fromhex(
+    "89504E470D0A1A0A0000000D4948445200000001000000010802000000907753DE0000000A49444154789C6360000000020001E527D4A20000000049454E44AE426082"
+)
+
 
 def _register_and_auth(client, email: str | None = None) -> dict[str, str]:
     user_email = email or f"history-{uuid4()}@example.com"
@@ -19,13 +23,13 @@ def _create_job(
     client,
     headers: dict[str, str],
     model_id: str = "rddc2020-imsc-last95",
-    filename: str = "road.jpg",
+    filename: str = "road.png",
 ) -> str:
     response = client.post(
         "/inference/jobs",
         headers=headers,
         data={"model_id": model_id},
-        files={"image": (filename, b"fake-image-data", "image/jpeg")},
+        files={"image": (filename, VALID_IMAGE_BYTES, "image/png")},
     )
     assert response.status_code == 202
     return response.json()["data"]["job_id"]
@@ -93,9 +97,9 @@ def test_history_is_user_scoped_and_supports_pagination_and_model_filter(client,
 def test_history_sorting_by_time_id_and_name(client, db_session):
     headers = _register_and_auth(client, email=f"sort-history-{uuid4()}@example.com")
 
-    job_c = _create_job(client, headers, filename="c.jpg")
-    job_a = _create_job(client, headers, filename="a.jpg")
-    job_b = _create_job(client, headers, filename="b.jpg")
+    job_c = _create_job(client, headers, filename="c.png")
+    job_a = _create_job(client, headers, filename="a.png")
+    job_b = _create_job(client, headers, filename="b.png")
 
     base_time = datetime.now(UTC)
     job_c_row = db_session.query(InferenceJob).filter(InferenceJob.id == job_c).first()
@@ -138,7 +142,7 @@ def test_history_sorting_by_time_id_and_name(client, db_session):
     name_asc_items = name_asc.json()["data"]["items"]
     name_asc_ids = [item["job_id"] for item in name_asc_items]
     assert name_asc_ids == [job_a, job_b, job_c]
-    assert [item["original_filename"] for item in name_asc_items] == ["a.jpg", "b.jpg", "c.jpg"]
+    assert [item["original_filename"] for item in name_asc_items] == ["a.png", "b.png", "c.png"]
 
 
 def test_history_computes_stats_and_handles_malformed_detection_json(client, db_session):

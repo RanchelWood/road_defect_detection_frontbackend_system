@@ -38,7 +38,8 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-26 13:40Z) Milestone 3C runtime availability verified by Test Engineer with real ORDDC image inference (`orddc2024-phase2-ensemble`) succeeding end-to-end.
 - [x] (2026-03-26 13:55Z) Milestone 3D completed: inference GUI updated for multi-engine model selection (engine-family filter + grouped model options), with unit and smoke verification passed by Test Engineer.
 - [x] (2026-03-26 14:45Z) Post-release ORDDC runtime bug fixed: adapter now passes absolute workspace paths to ORDDC scripts and surfaces traceback-tail errors; Test Engineer verified both Phase1 and Phase2 succeed end-to-end.
-- [ ] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
+- [x] (2026-03-27 09:08Z) Milestone 3 hardening completed: strict image-content validation, structured inference lifecycle logging, atomic queued-claim/success-finalization guards, and backend integration regressions updated with passing Test Engineer evidence (`28 passed`).
+- [x] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [x] Milestone 3C: ORDDC2024 second-engine integration using existing adapter contracts and async job APIs.
 - [ ] Milestone 4A: async video inference jobs (`create + poll + cancel`) with video-specific result metadata.
 - [ ] Milestone 4B: optional WebSocket streaming for near-real-time inference after Milestone 4A stabilizes.
@@ -85,6 +86,9 @@ After this work, a beginner should be able to run a web system where a user can 
 
 - Observation: ORDDC scripts fail when backend passes relative `image_root/results/boxed_output` paths while `cwd` is ORDDC root.
   Evidence: failed run logs showed `ValueError: Invalid path to images` for `media\inference_jobs\...\runtime\image_root`, which resolved after switching command args to absolute paths.
+
+- Observation: local full-backend pytest runs that use tmp-path fixtures can fail in this Codex runtime due Windows temp-directory permission constraints, even when Milestone 3 hardening tests pass.
+  Evidence: Test Engineer runs showed targeted suites passing (`28 passed`) while full suite errored on `PermissionError: [WinError 5]` under `.pytest_tmp_run/pytest-of-18926`.
 ## Decision Log
 
 - Decision: Use external `rddc2020` command-line integration for Milestone 2 instead of implementing native inference in this repo.
@@ -206,6 +210,14 @@ After this work, a beginner should be able to run a web system where a user can 
 - Decision: ORDDC adapter command arguments must use absolute paths and runtime error summarization must prioritize traceback tails over warning prefixes.
   Rationale: Prevents path-resolution failures in real deployments and exposes actionable root-cause errors in UI/API payloads.
   Date/Author: 2026-03-26 / Codex
+
+- Decision: Upload validation now enforces extension-consistent image signature checks (`jpeg/png`) before job persistence.
+  Rationale: Prevents non-image payloads and mismatched file content from entering engine execution paths.
+  Date/Author: 2026-03-27 / Codex
+
+- Decision: Job execution now uses atomic queued-claim and conditional success-finalization (`running` + `error_code is null`) with structured lifecycle logs.
+  Rationale: Reduces duplicate execution race risk, protects cancellation semantics, and improves operability for triage.
+  Date/Author: 2026-03-27 / Codex
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -255,6 +267,8 @@ Milestone 3C verification outcome (2026-03-26): Test Engineer confirmed real-ima
 Milestone 3D outcome (2026-03-26): inference UI now includes engine-family filtering and grouped multi-engine model options with safe persisted-selection fallback behavior; Test Engineer passed unit and smoke verification.
 
 Bugfix outcome (2026-03-26): ORDDC runtime failure after ~30s was resolved by switching adapter command paths to absolute and improving runtime error-tail extraction; Test Engineer retest passed for both `orddc2024-phase1-ensemble` and `orddc2024-phase2-ensemble`.
+
+Milestone 3 hardening outcome (2026-03-27): backend now rejects invalid/mismatched image bytes (`INVALID_IMAGE_CONTENT`), emits structured inference lifecycle logs (`job_id/model_id/engine_id/status/error_code/duration`), and enforces atomic queued-claim with cancellation-safe success finalization; Test Engineer verified milestone suites (`test_inference_jobs`, `test_inference_execution`, `test_history`) passing (`28 passed`).
 
 ## Context and Orientation
 
@@ -399,3 +413,5 @@ Plan change note (2026-03-26 / Codex): Added video-support feasibility decisions
 Plan change note (2026-03-26 / Codex): Implemented Milestone 3C backend integration (`orddc2024` adapter + config + registry + tests) and validated real-image ORDDC runtime success through Test Engineer evidence.
 Plan change note (2026-03-26 / Codex): Implemented Milestone 3D frontend multi-engine UX (engine-family selector + grouped models) and closed with Test Engineer unit/smoke verification.
 Plan change note (2026-03-26 / Codex): Closed ORDDC post-release runtime failure by fixing absolute path command args and traceback-tail error reporting; verified Phase1/Phase2 success with Test Engineer evidence.
+Plan change note (2026-03-27 / Codex): Implemented Milestone 3 hardening (upload content validation, structured job logging, atomic job claim/finalization safety) and aligned backend integration tests with Test Engineer verification evidence.
+

@@ -1,4 +1,5 @@
 import json
+import logging
 import math
 from datetime import UTC, datetime
 from pathlib import Path
@@ -17,6 +18,8 @@ from app.services.dispatcher import InferenceDispatcher
 from app.services.engine_registry import InferenceEngineRegistry, get_engine_registry
 from app.services.model_registry import ModelRegistryService
 
+logger = logging.getLogger(__name__)
+
 
 class InferenceJobService:
     _CANCEL_REQUESTED_CODE = "CANCEL_REQUESTED"
@@ -32,6 +35,7 @@ class InferenceJobService:
         self._engine_registry = engine_registry or get_engine_registry()
         self._model_registry = model_registry or ModelRegistryService(engine_registry=self._engine_registry)
         self._dispatcher = dispatcher or InferenceDispatcher()
+        self._logger = logger
 
     def create_queued_job(
         self,
@@ -55,6 +59,16 @@ class InferenceJobService:
         db.add(job)
         db.commit()
         db.refresh(job)
+
+        self._log_job_event(
+            "inference_job_created",
+            job_id=job.id,
+            user_id=user.id,
+            model_id=job.model_id,
+            engine_id=job.engine_id,
+            status_transition="created->queued",
+        )
+
         return job
 
     def dispatch_job(self, background_tasks: BackgroundTasks, job_id: str) -> None:
@@ -97,18 +111,43 @@ class InferenceJobService:
     def execute_job(self, job_id: str) -> None:
         db = SessionLocal()
         try:
+            started_at = datetime.now(UTC)
+            claimed_rows = (
+                db.query(InferenceJob)
+                .filter(InferenceJob.id == job_id, InferenceJob.status == "queued")
+                .update(
+                    {
+                        InferenceJob.status: "running",
+                        InferenceJob.started_at: started_at,
+                        InferenceJob.error_code: None,
+                        InferenceJob.error_message: None,
+                    },
+                    synchronize_session=False,
+                )
+            )
+            db.commit()
+
+            if claimed_rows == 0:
+                self._log_job_event(
+                    "inference_job_claim_skipped",
+                    job_id=job_id,
+                    status_transition="queued->running",
+                    error_code="CLAIM_NOT_QUEUED",
+                )
+                return
+
             job = db.query(InferenceJob).filter(InferenceJob.id == job_id).first()
             if job is None:
                 return
-            if job.status != "queued":
-                return
 
-            job.status = "running"
-            job.started_at = datetime.now(UTC)
-            job.error_code = None
-            job.error_message = None
-            db.add(job)
-            db.commit()
+            self._log_job_event(
+                "inference_job_claimed",
+                job_id=job.id,
+                user_id=job.user_id,
+                model_id=job.model_id,
+                engine_id=job.engine_id,
+                status_transition="queued->running",
+            )
 
             try:
                 model = self._model_registry.validate_model_id(job.model_id)
@@ -134,19 +173,55 @@ class InferenceJobService:
                 self._mark_cancelled(db=db, job_id=job_id, message="Inference job cancelled by user request.")
                 return
 
+            finished_at = datetime.now(UTC)
+            succeeded_rows = (
+                db.query(InferenceJob)
+                .filter(
+                    InferenceJob.id == job_id,
+                    InferenceJob.status == "running",
+                    InferenceJob.error_code.is_(None),
+                )
+                .update(
+                    {
+                        InferenceJob.status: "succeeded",
+                        InferenceJob.output_path: result.annotated_image_path,
+                        InferenceJob.detections_json: json.dumps(result.detections),
+                        InferenceJob.duration_ms: result.duration_ms,
+                        InferenceJob.finished_at: finished_at,
+                    },
+                    synchronize_session=False,
+                )
+            )
+            db.commit()
+
+            if succeeded_rows == 0:
+                current = db.query(InferenceJob).filter(InferenceJob.id == job_id).first()
+                if current and (
+                    current.status == "cancelled" or current.error_code == self._CANCEL_REQUESTED_CODE
+                ):
+                    self._mark_cancelled(db=db, job_id=job_id, message="Inference job cancelled by user request.")
+                else:
+                    self._log_job_event(
+                        "inference_job_finalize_skipped",
+                        job_id=job_id,
+                        status_transition="running->succeeded",
+                        error_code="FINALIZE_NOT_RUNNING",
+                    )
+                return
+
             job = db.query(InferenceJob).filter(InferenceJob.id == job_id).first()
             if job is None:
                 return
-            if job.status == "cancelled":
-                return
 
-            job.status = "succeeded"
-            job.output_path = result.annotated_image_path
-            job.detections_json = json.dumps(result.detections)
-            job.duration_ms = result.duration_ms
-            job.finished_at = datetime.now(UTC)
-            db.add(job)
-            db.commit()
+            self._log_job_event(
+                "inference_job_succeeded",
+                job_id=job.id,
+                user_id=job.user_id,
+                model_id=job.model_id,
+                engine_id=job.engine_id,
+                status_transition="running->succeeded",
+                duration_ms=job.duration_ms,
+            )
         except AdapterExecutionError as exc:
             if exc.code == self._JOB_CANCELLED_CODE:
                 self._mark_cancelled(db=db, job_id=job_id, message=exc.message)
@@ -174,6 +249,7 @@ class InferenceJobService:
         if job.status == "cancelled":
             return
 
+        previous_status = job.status
         job.status = "failed"
         job.error_code = error_code
         job.error_message = error_message[:2000]
@@ -181,17 +257,39 @@ class InferenceJobService:
         db.add(job)
         db.commit()
 
+        self._log_job_event(
+            "inference_job_failed",
+            level=logging.ERROR,
+            job_id=job.id,
+            user_id=job.user_id,
+            model_id=job.model_id,
+            engine_id=job.engine_id,
+            status_transition=f"{previous_status}->failed",
+            error_code=error_code,
+        )
+
     def _mark_cancelled(self, db: Session, job_id: str, message: str) -> None:
         job = db.query(InferenceJob).filter(InferenceJob.id == job_id).first()
         if job is None:
             return
 
+        previous_status = job.status
         job.status = "cancelled"
         job.error_code = self._JOB_CANCELLED_CODE
         job.error_message = message[:2000]
         job.finished_at = datetime.now(UTC)
         db.add(job)
         db.commit()
+
+        self._log_job_event(
+            "inference_job_cancelled",
+            job_id=job.id,
+            user_id=job.user_id,
+            model_id=job.model_id,
+            engine_id=job.engine_id,
+            status_transition=f"{previous_status}->cancelled",
+            error_code=self._JOB_CANCELLED_CODE,
+        )
 
     def _is_cancel_requested(self, job_id: str) -> bool:
         db = SessionLocal()
@@ -227,6 +325,16 @@ class InferenceJobService:
             db.add(job)
             db.commit()
             db.refresh(job)
+
+            self._log_job_event(
+                "inference_job_cancelled",
+                job_id=job.id,
+                user_id=job.user_id,
+                model_id=job.model_id,
+                engine_id=job.engine_id,
+                status_transition="queued->cancelled",
+                error_code=self._JOB_CANCELLED_CODE,
+            )
             return job
 
         if job.status == "running":
@@ -235,6 +343,16 @@ class InferenceJobService:
             db.add(job)
             db.commit()
             db.refresh(job)
+
+            self._log_job_event(
+                "inference_job_cancel_requested",
+                job_id=job.id,
+                user_id=job.user_id,
+                model_id=job.model_id,
+                engine_id=job.engine_id,
+                status_transition="running->cancel_requested",
+                error_code=self._CANCEL_REQUESTED_CODE,
+            )
             return job
 
         db.refresh(job)
@@ -388,9 +506,40 @@ class InferenceJobService:
                 },
             )
 
+        expected_kinds = self._expected_image_kinds_for_suffix(suffix)
+        detected_kind = self._detect_image_kind(file_bytes)
+        if detected_kind is None or detected_kind not in expected_kinds:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "code": "INVALID_IMAGE_CONTENT",
+                    "message": "Uploaded file bytes are not a valid image.",
+                    "details": {"field": "image"},
+                },
+            )
+
         job_dir = Path(self._settings.media_root) / "inference_jobs" / str(uuid4())
         job_dir.mkdir(parents=True, exist_ok=True)
         target_path = job_dir / f"input{suffix}"
         target_path.write_bytes(file_bytes)
         return target_path
+
+    def _expected_image_kinds_for_suffix(self, suffix: str) -> set[str]:
+        mapping = {
+            ".jpg": {"jpeg"},
+            ".jpeg": {"jpeg"},
+            ".png": {"png"},
+        }
+        return mapping.get(suffix, {"jpeg", "png"})
+
+    def _detect_image_kind(self, file_bytes: bytes) -> str | None:
+        if file_bytes.startswith(b"\xFF\xD8\xFF"):
+            return "jpeg"
+        if file_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+            return "png"
+        return None
+
+    def _log_job_event(self, event: str, level: int = logging.INFO, **context: object) -> None:
+        payload = {key: value for key, value in context.items() if value is not None}
+        self._logger.log(level, event, extra=payload)
 

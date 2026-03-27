@@ -5,6 +5,10 @@ from uuid import uuid4
 
 from app.models.inference_job import InferenceJob
 
+VALID_IMAGE_BYTES = bytes.fromhex(
+    "89504E470D0A1A0A0000000D4948445200000001000000010802000000907753DE0000000A49444154789C6360000000020001E527D4A20000000049454E44AE426082"
+)
+
 
 def _register_and_auth(client, email: str | None = None) -> dict[str, str]:
     user_email = email or f"user-{uuid4()}@example.com"
@@ -53,7 +57,7 @@ def test_create_inference_job_returns_queued_job(client):
         "/inference/jobs",
         headers=headers,
         data={"model_id": "rddc2020-imsc-ensemble-test1"},
-        files={"image": ("road.jpg", b"fake-image-data", "image/jpeg")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
 
     assert response.status_code == 202
@@ -68,7 +72,7 @@ def test_create_inference_job_returns_queued_job_for_orddc2024_model(client):
         "/inference/jobs",
         headers=headers,
         data={"model_id": "orddc2024-phase1-ensemble"},
-        files={"image": ("road.jpg", b"fake-image-data", "image/jpeg")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
 
     assert response.status_code == 202
@@ -78,6 +82,22 @@ def test_create_inference_job_returns_queued_job_for_orddc2024_model(client):
     assert payload["data"]["engine_id"] == "orddc2024-cli"
 
 
+
+def test_create_inference_job_rejects_invalid_image_content(client):
+    headers = _register_and_auth(client)
+
+    response = client.post(
+        "/inference/jobs",
+        headers=headers,
+        data={"model_id": "rddc2020-imsc-last95"},
+        files={"image": ("road.jpg", b"this-is-not-an-image", "image/jpeg")},
+    )
+
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["error"]["code"] == "INVALID_IMAGE_CONTENT"
+    assert payload["error"]["details"]["field"] == "image"
+
 def test_create_inference_job_validates_model_id(client):
     headers = _register_and_auth(client)
 
@@ -85,7 +105,7 @@ def test_create_inference_job_validates_model_id(client):
         "/inference/jobs",
         headers=headers,
         data={"model_id": "unknown-model"},
-        files={"image": ("road.jpg", b"fake-image-data", "image/jpeg")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
 
     assert response.status_code == 400
@@ -99,7 +119,7 @@ def test_owner_can_cancel_queued_job(client, db_session):
         "/inference/jobs",
         headers=headers,
         data={"model_id": "rddc2020-imsc-last95"},
-        files={"image": ("road.png", b"fake-image-data", "image/png")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
     job_id = create_response.json()["data"]["job_id"]
 
@@ -124,7 +144,7 @@ def test_non_owner_cannot_cancel_job(client):
         "/inference/jobs",
         headers=owner_headers,
         data={"model_id": "rddc2020-imsc-last95"},
-        files={"image": ("road.png", b"fake-image-data", "image/png")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
     job_id = create_response.json()["data"]["job_id"]
 
@@ -141,7 +161,7 @@ def test_cancel_running_job_requests_cancellation(client, db_session):
         "/inference/jobs",
         headers=headers,
         data={"model_id": "rddc2020-imsc-last95"},
-        files={"image": ("road.png", b"fake-image-data", "image/png")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
     job_id = create_response.json()["data"]["job_id"]
 
@@ -174,7 +194,7 @@ def test_user_can_fetch_own_job_only(client):
         "/inference/jobs",
         headers=owner_headers,
         data={"model_id": "rddc2020-imsc-last95"},
-        files={"image": ("road.png", b"fake-image-data", "image/png")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
     job_id = create_response.json()["data"]["job_id"]
 
@@ -195,7 +215,7 @@ def test_job_detail_timestamps_include_utc_timezone_suffix(client):
         "/inference/jobs",
         headers=headers,
         data={"model_id": "rddc2020-imsc-last95"},
-        files={"image": ("road.png", b"fake-image-data", "image/png")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
     job_id = create_response.json()["data"]["job_id"]
 
@@ -219,7 +239,7 @@ def test_job_detail_result_payload_matches_contract_shape(client, db_session):
         "/inference/jobs",
         headers=headers,
         data={"model_id": "rddc2020-imsc-last95"},
-        files={"image": ("road.png", b"fake-image-data", "image/png")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
     job_id = create_response.json()["data"]["job_id"]
 
@@ -264,7 +284,7 @@ def test_job_detail_result_payload_matches_contract_shape(client, db_session):
 def test_owner_can_fetch_original_and_annotated_images_when_available(client, db_session):
     headers = _register_and_auth(client, email=f"img-owner-{uuid4()}@example.com")
 
-    original_bytes = b"original-image-bytes"
+    original_bytes = VALID_IMAGE_BYTES
     create_response = client.post(
         "/inference/jobs",
         headers=headers,
@@ -302,7 +322,7 @@ def test_non_owner_is_denied_job_image_access(client):
         "/inference/jobs",
         headers=owner_headers,
         data={"model_id": "rddc2020-imsc-last95"},
-        files={"image": ("road.png", b"fake-image-data", "image/png")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
     job_id = create_response.json()["data"]["job_id"]
 
@@ -319,7 +339,7 @@ def test_missing_annotated_image_returns_clean_not_found(client):
         "/inference/jobs",
         headers=headers,
         data={"model_id": "rddc2020-imsc-last95"},
-        files={"image": ("road.png", b"fake-image-data", "image/png")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
     job_id = create_response.json()["data"]["job_id"]
 
@@ -338,7 +358,7 @@ def test_unsupported_image_kind_returns_clear_error(client):
         "/inference/jobs",
         headers=headers,
         data={"model_id": "rddc2020-imsc-last95"},
-        files={"image": ("road.png", b"fake-image-data", "image/png")},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
     )
     job_id = create_response.json()["data"]["job_id"]
 
@@ -346,5 +366,4 @@ def test_unsupported_image_kind_returns_clear_error(client):
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "INVALID_IMAGE_KIND"
-
 
