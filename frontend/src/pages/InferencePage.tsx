@@ -12,8 +12,7 @@ import type { InferenceJobDetail, InferenceJobStatus, InferenceJobSubmission, Mo
 const POLL_INTERVAL_MS = 2000;
 const SELECTED_MODEL_STORAGE_KEY = "road_defect_selected_model_id";
 
-type EngineFamily = "all" | "rddc2020" | "orddc2024";
-type ResolvedEngineFamily = Exclude<EngineFamily, "all"> | "other";
+const ALL_ENGINE_FAMILY = "all";
 
 type GroupedModels = {
   key: string;
@@ -21,11 +20,21 @@ type GroupedModels = {
   items: ModelSummary[];
 };
 
-const ENGINE_FAMILY_OPTIONS: Array<{ value: EngineFamily; label: string }> = [
-  { value: "all", label: "All" },
-  { value: "rddc2020", label: "RDDC2020" },
-  { value: "orddc2024", label: "ORDDC2024" },
-];
+type EngineFamilyDescriptor = {
+  key: string;
+  label: string;
+};
+
+type EngineFamilyOption = {
+  value: string;
+  label: string;
+};
+
+const KNOWN_ENGINE_FAMILIES: Record<string, EngineFamilyDescriptor> = {
+  "rddc2020-cli": { key: "rddc2020", label: "RDDC2020" },
+  "orddc2024-cli": { key: "orddc2024", label: "ORDDC2024" },
+  "shiyu-grddc2022-cli": { key: "grddc2022", label: "GRDDC2022" },
+};
 
 const dateTimeFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -69,40 +78,35 @@ function getPersistedModelId(): string {
   }
 }
 
-function getEngineFamilyFromModel(model: ModelSummary): ResolvedEngineFamily {
-  const identity = `${model.model_id} ${model.engine_id}`.toLowerCase();
-
-  if (identity.includes("orddc2024")) {
-    return "orddc2024";
-  }
-
-  if (identity.includes("rddc2020")) {
-    return "rddc2020";
-  }
-
-  return "other";
+function normalizeEngineIdLabel(engineId: string) {
+  const normalized = engineId.trim().toUpperCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
+  return normalized || "UNKNOWN ENGINE";
 }
 
-function getEngineFamilyLabel(engineFamily: ResolvedEngineFamily) {
-  if (engineFamily === "orddc2024") {
-    return "ORDDC2024";
+function getEngineFamilyForEngineId(engineId: string): EngineFamilyDescriptor {
+  const normalizedEngineId = engineId.trim().toLowerCase();
+  const knownFamily = KNOWN_ENGINE_FAMILIES[normalizedEngineId];
+  if (knownFamily) {
+    return knownFamily;
   }
 
-  if (engineFamily === "rddc2020") {
-    return "RDDC2020";
-  }
-
-  return "Other";
+  return {
+    key: `engine:${normalizedEngineId}`,
+    label: normalizeEngineIdLabel(engineId),
+  };
 }
 
-function getEngineFamilyFilterLabel(engineFamily: EngineFamily) {
-  if (engineFamily === "all") {
+function getEngineFamilyFilterLabel(engineFamily: string, options: EngineFamilyOption[]) {
+  if (engineFamily === ALL_ENGINE_FAMILY) {
     return "All";
   }
 
-  return getEngineFamilyLabel(engineFamily);
+  return options.find((option) => option.value === engineFamily)?.label ?? "Selected engine family";
 }
 
+function getEngineFamilyFromModel(model: ModelSummary) {
+  return getEngineFamilyForEngineId(model.engine_id).key;
+}
 export function InferencePage() {
   const { authState } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -111,7 +115,7 @@ export function InferencePage() {
   const [modelsLoading, setModelsLoading] = useState(true);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState<string>(() => getPersistedModelId());
-  const [selectedEngineFamily, setSelectedEngineFamily] = useState<EngineFamily>("all");
+  const [selectedEngineFamily, setSelectedEngineFamily] = useState<string>(ALL_ENGINE_FAMILY);
   const [modelSelectionNotice, setModelSelectionNotice] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -241,12 +245,27 @@ export function InferencePage() {
   }, [loadModels]);
 
   const filteredModels = useMemo(() => {
-    if (selectedEngineFamily === "all") {
+    if (selectedEngineFamily === ALL_ENGINE_FAMILY) {
       return models;
     }
 
     return models.filter((model) => getEngineFamilyFromModel(model) === selectedEngineFamily);
   }, [models, selectedEngineFamily]);
+
+  const engineFamilyOptions = useMemo<EngineFamilyOption[]>(() => {
+    const optionsMap = new Map<string, string>();
+
+    for (const model of models) {
+      const family = getEngineFamilyForEngineId(model.engine_id);
+      optionsMap.set(family.key, family.label);
+    }
+
+    const dynamicOptions = Array.from(optionsMap.entries())
+      .sort((left, right) => left[1].localeCompare(right[1]))
+      .map(([value, label]) => ({ value, label }));
+
+    return [{ value: ALL_ENGINE_FAMILY, label: "All" }, ...dynamicOptions];
+  }, [models]);
 
   const groupedFilteredModels = useMemo<GroupedModels[]>(() => {
     const groups = new Map<string, GroupedModels>();
@@ -258,10 +277,10 @@ export function InferencePage() {
         continue;
       }
 
-      const engineFamily = getEngineFamilyFromModel(model);
+      const engineFamily = getEngineFamilyForEngineId(model.engine_id);
       groups.set(model.engine_id, {
         key: model.engine_id,
-        label: `${getEngineFamilyLabel(engineFamily)} (${model.engine_id})`,
+        label: `${engineFamily.label} (${model.engine_id})`,
         items: [model],
       });
     }
@@ -270,10 +289,21 @@ export function InferencePage() {
   }, [filteredModels]);
 
   useEffect(() => {
+    if (selectedEngineFamily === ALL_ENGINE_FAMILY) {
+      return;
+    }
+
+    const selectedFamilyStillExists = engineFamilyOptions.some((option) => option.value === selectedEngineFamily);
+    if (!selectedFamilyStillExists) {
+      setSelectedEngineFamily(ALL_ENGINE_FAMILY);
+    }
+  }, [engineFamilyOptions, selectedEngineFamily]);
+
+  useEffect(() => {
     if (models.length === 0) {
       if (!modelsLoading) {
         setSelectedModelId("");
-        setModelSelectionNotice(`No models are available under ${getEngineFamilyFilterLabel(selectedEngineFamily)}.`);
+        setModelSelectionNotice(`No models are available under ${getEngineFamilyFilterLabel(selectedEngineFamily, engineFamilyOptions)}.`);
       } else {
         setModelSelectionNotice(null);
       }
@@ -290,22 +320,22 @@ export function InferencePage() {
     const nextModelId = fallbackModel?.model_id ?? "";
 
     if (selectedModelId && fallbackModel) {
-      const nextEngineLabel = getEngineFamilyFilterLabel(selectedEngineFamily);
+      const nextEngineLabel = getEngineFamilyFilterLabel(selectedEngineFamily, engineFamilyOptions);
       setModelSelectionNotice(
         `Selected model is unavailable under ${nextEngineLabel}. Switched to ${fallbackModel.display_name}.`,
       );
     } else if (selectedModelId && !fallbackModel) {
       setModelSelectionNotice(
-        `Selected model is unavailable under ${getEngineFamilyFilterLabel(selectedEngineFamily)}. No models match this filter.`,
+        `Selected model is unavailable under ${getEngineFamilyFilterLabel(selectedEngineFamily, engineFamilyOptions)}. No models match this filter.`,
       );
     } else if (!selectedModelId && !fallbackModel && !modelsLoading) {
-      setModelSelectionNotice(`No models are available under ${getEngineFamilyFilterLabel(selectedEngineFamily)}.`);
+      setModelSelectionNotice(`No models are available under ${getEngineFamilyFilterLabel(selectedEngineFamily, engineFamilyOptions)}.`);
     } else {
       setModelSelectionNotice(null);
     }
 
     setSelectedModelId(nextModelId);
-  }, [filteredModels, models.length, modelsLoading, selectedEngineFamily, selectedModelId]);
+  }, [engineFamilyOptions, filteredModels, models.length, modelsLoading, selectedEngineFamily, selectedModelId]);
 
   useEffect(() => {
     if (!jobIdFromRoute) {
@@ -544,7 +574,7 @@ export function InferencePage() {
   const resolvedModelId = (jobDetail?.model_id ?? trackedSubmission?.model_id ?? selectedModelId) || "Not selected";
   const resolvedEngineId = jobDetail?.engine_id ?? trackedSubmission?.engine_id ?? "Not available";
   const selectedModel = models.find((model) => model.model_id === selectedModelId) ?? null;
-  const selectedModelEngineFamily = selectedModel ? getEngineFamilyLabel(getEngineFamilyFromModel(selectedModel)) : null;
+  const selectedModelEngineFamily = selectedModel ? getEngineFamilyForEngineId(selectedModel.engine_id).label : null;
   const elapsedAnchorLabel = jobDetail?.started_at ? "started_at" : jobDetail?.created_at ? "created_at" : null;
 
   return (
@@ -578,11 +608,11 @@ export function InferencePage() {
                 disabled={modelsLoading || submitting}
                 onChange={(event) => {
                   setModelSelectionNotice(null);
-                  setSelectedEngineFamily(event.target.value as EngineFamily);
+                  setSelectedEngineFamily(event.target.value);
                 }}
                 value={selectedEngineFamily}
               >
-                {ENGINE_FAMILY_OPTIONS.map((option) => (
+                {engineFamilyOptions.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>

@@ -1,10 +1,13 @@
 # Road Damage Defect System
 
-This repository now includes a runnable Milestone 2 MVP:
+This repository now includes a runnable Milestone 3E image-inference MVP:
 
 - FastAPI backend with auth, model registry, async inference jobs, cancel support, job image endpoint, and history APIs
 - React frontend with login/register, protected pages, image inference submission/polling/cancel, result rendering, history browsing, and theme toggle
-- External first inference engine integration via `rddc2020` CLI adapter
+- External multi-engine integration via CLI adapters:
+  - `rddc2020-cli`
+  - `orddc2024-cli`
+  - `shiyu-grddc2022-cli`
 - SQLite persistence for users, refresh sessions, and inference jobs
 - Docker Compose template for single-VM style startup
 

@@ -7,7 +7,8 @@ The project currently has two app services plus external inference runtime depen
 - Frontend: React on `http://localhost:5173`
 - External inference runtimes:
   - `rddc2020` (active)
-  - `orddc2024` (active second engine)
+  - `orddc2024` (active)
+  - `ShiYu_SeaView_GRDDC2022` (active)
 
 ## First-Time Setup
 
@@ -37,8 +38,11 @@ Run these steps only once, or again if you delete your local environment folders
 
     - `D:\road_defect_detection\rddc2020` exists.
     - `D:\road_defect_detection\orddc2024-main` exists.
+    - `D:\road_defect_detection\ShiYu_SeaView_GRDDC2022` exists.
     - ORDDC python env exists (`D:\anaconda3\envs\orddc2024\python.exe`) or is set via `.env`.
-    - Required model cache folders exist under ORDDC root (`models_ph1`, `models_ph2`).
+    - ShiYu python env exists (`D:\anaconda3\envs\crddc2022\python.exe`) or is set via `.env`.
+    - Required ORDDC cache folders exist under ORDDC root (`models_ph1`, `models_ph2`).
+    - Required ShiYu scripts/weights exist: `yolov7/detect.py`, `yolov5/detect.py`, `merge.py`, `YOLOv7x_640.pt`, `YOLOv5x_640.pt`.
 
 ## Every Time You Want to Run the Project
 
@@ -121,6 +125,8 @@ Then open:
 - If `npm run dev` fails, run `npm install` again in the `frontend` folder.
 - If login or job submission fails, confirm the backend is running on port `8000`.
 - If ORDDC jobs fail quickly, verify `ORDDC2024_PYTHON_PATH`, `ORDDC2024_ROOT`, and model cache folders.
+- If ShiYu jobs fail quickly, verify `SHIYU_GRDDC2022_PYTHON_PATH`, `SHIYU_GRDDC2022_ROOT`, and required weights/scripts.
+- If ShiYu jobs succeed but annotated image has no drawn boxes, install `Pillow` in backend runtime; fallback mode copies original image when Pillow is unavailable.
 
 ## Planned Features Notice
 

@@ -15,14 +15,17 @@ The model registry is the single source of truth for selectable model presets ac
 - Active engines:
   - `rddc2020-cli`
   - `orddc2024-cli`
+  - `shiyu-grddc2022-cli`
 - Active preset set includes:
   - `rddc2020-imsc-last95`
   - `rddc2020-imsc-ensemble-test1`
   - `rddc2020-imsc-ensemble-test2`
   - `orddc2024-phase1-ensemble`
   - `orddc2024-phase2-ensemble`
+  - `shiyu-cpu-ensemble-default`
+  - `shiyu-yolov7x-640`
 
-Planned video default model: `orddc2024-phase2-ensemble`.
+Planned video default model remains: `orddc2024-phase2-ensemble`.
 
 ## Data Contract
 
@@ -64,5 +67,6 @@ Do not expose engine-specific internals directly in frontend requests. Frontend 
 ## Planning References
 
 - `docs/architecture/orddc2024-integration-design.md`
+- `docs/architecture/shiyu-grddc2022-integration-design.md`
 - `docs/architecture/video-support-design.md`
 - `docs/contracts/video-inference-job-contract.md`

@@ -32,11 +32,20 @@ Frontend:
 2. Install dependencies in `frontend`.
 3. Start dev server.
 
-External engine runtime (`rddc2020`):
+External engine runtimes (active):
 
-1. Ensure sibling path exists: `D:\road_defect_detection\rddc2020`.
-2. Ensure engine dependencies and weights are available in that runtime.
-3. Validate `detect.py` command manually before backend adapter integration tests.
+1. `rddc2020` runtime:
+   - Ensure sibling path exists: `D:\road_defect_detection\rddc2020`.
+   - Ensure engine dependencies and weights are available.
+2. `orddc2024` runtime:
+   - Ensure root exists: `D:\road_defect_detection\orddc2024-main`.
+   - Ensure dedicated python env path is valid (`D:\anaconda3\envs\orddc2024\python.exe` or env override).
+   - Ensure model cache folders exist (`models_ph1`, `models_ph2`).
+3. `shiyu-grddc2022` runtime:
+   - Ensure root exists: `D:\road_defect_detection\ShiYu_SeaView_GRDDC2022`.
+   - Ensure dedicated python env path is valid (`D:\anaconda3\envs\crddc2022\python.exe` or env override).
+   - Ensure required scripts/weights exist (`yolov7/detect.py`, `yolov5/detect.py`, `merge.py`, `YOLOv7x_640.pt`, `YOLOv5x_640.pt`).
+
 
 ## Frontend Automation Stack (Implemented)
 

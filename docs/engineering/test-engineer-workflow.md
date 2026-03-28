@@ -69,6 +69,7 @@ Baseline command matrix:
 - Frontend-only bug:
   - `cd frontend && npm run test:unit`
   - `cd frontend && npm run test:e2e:smoke` when auth/navigation/inference/history UI is affected
+  - If sandbox throws `EPERM` on Node startup paths (for example `C:\Users\...`), rerun the same commands in local host shell and attach that evidence.
 - Backend-only bug:
   - `cd backend && .\.venv\Scripts\python.exe -m pytest tests`
   - If temp-permission errors appear, rerun with explicit base temp: `cd backend && .\.venv\Scripts\python.exe -m pytest tests --basetemp=.pytest_tmp_run`

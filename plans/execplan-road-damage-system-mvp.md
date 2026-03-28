@@ -39,9 +39,13 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-26 13:55Z) Milestone 3D completed: inference GUI updated for multi-engine model selection (engine-family filter + grouped model options), with unit and smoke verification passed by Test Engineer.
 - [x] (2026-03-26 14:45Z) Post-release ORDDC runtime bug fixed: adapter now passes absolute workspace paths to ORDDC scripts and surfaces traceback-tail errors; Test Engineer verified both Phase1 and Phase2 succeed end-to-end.
 - [x] (2026-03-27 09:08Z) Milestone 3 hardening completed: strict image-content validation, structured inference lifecycle logging, atomic queued-claim/success-finalization guards, and backend integration regressions updated with passing Test Engineer evidence (`28 passed`).
-- [x] (2026-03-27 09:46Z) Confidence UI policy implemented: confidence/max-confidence display removed from frontend inference/history views, while backend confidence field is retained for forward compatibility.
+- [x] (2026-03-28 06:40Z) Milestone 3E implemented: GRDDC2022 third-engine adapter integrated (shiyu-grddc2022-cli) with phased preset rollout, merged-output normalization, and dynamic frontend engine-family filtering.
+- [x] (2026-03-28 08:20Z) Milestone 3E follow-up hardening applied: GRDDC adapter preflight errors now include step context, parser now raises deterministic `ENGINE_OUTPUT_PARSE_ERROR` when target row is missing, and frontend tests now cover unknown engine-family fallback labeling.
+- [x] (2026-03-28 09:10Z) Post-release GRDDC runtime bug fixed: adapter now degrades gracefully when Pillow is unavailable by copying the original image as annotated output instead of failing jobs with `ENGINE_NOT_RUNNABLE`.
+- [ ] (2026-03-28 08:35Z) Milestone 3E Test Engineer closure verification is pending local-host rerun due Codex sandbox permission blockers (`BUG-20260328-003`, `BUG-20260328-004`).
 - [x] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
-- [x] Milestone 3C: ORDDC2024 second-engine integration using existing adapter contracts and async job APIs.
+- [x] Milestone 3E: GRDDC2022 third-engine integration using existing adapter contracts and async job APIs.
+- [ ] Milestone 3F: GRDDC2022 one-stage + two-stage ensemble demo preset (YOLOv7 + Faster-Swin + merge).
 - [ ] Milestone 4A: async video inference jobs (`create + poll + cancel`) with video-specific result metadata.
 - [ ] Milestone 4B: optional WebSocket streaming for near-real-time inference after Milestone 4A stabilizes.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
@@ -91,8 +95,15 @@ After this work, a beginner should be able to run a web system where a user can 
 - Observation: local full-backend pytest runs that use tmp-path fixtures can fail in this Codex runtime due Windows temp-directory permission constraints, even when Milestone 3 hardening tests pass.
   Evidence: Test Engineer runs showed targeted suites passing (`28 passed`) while full suite errored on `PermissionError: [WinError 5]` under `.pytest_tmp_run/pytest-of-18926`.
 
-- Observation: both active image engines currently emit integration CSV outputs as class+bbox tuples without confidence values.
-  Evidence: `D:\road_defect_detection\rddc2020\yolov5\detect.py` and ORDDC phase scripts write CSV rows without confidence fields, and adapters normalize detections with `confidence: null`.
+- Observation: Codex desktop sandbox can block targeted test runs even with isolated temp/home overrides.
+  Evidence: Test Engineer reruns for Milestone 3E still hit `PermissionError: [WinError 5]` during pytest tmpdir cleanup for `test_shiyu_grddc2022_adapter.py`, and frontend test startup can fail with `EPERM: operation not permitted, lstat 'C:\Users\18926'` before Vitest executes.
+
+
+- Observation: ShiYu GRDDC2022 `merge.py` appends to output files instead of overwriting.
+  Evidence: `D:\road_defect_detection\ShiYu_SeaView_GRDDC2022\merge.py` opens the output with mode `a`, so integration must use per-job unique output files.
+
+- Observation: ShiYu YOLOv7/YOLOv5 scripts both support `--filename` text-output control compatible with per-job orchestration.
+  Evidence: `yolov7/detect.py` and `yolov5/detect.py` accept `--filename` and write line-format detections (`filename,class x1 y1 x2 y2 ...`).
 ## Decision Log
 
 - Decision: Use external `rddc2020` command-line integration for Milestone 2 instead of implementing native inference in this repo.
@@ -211,9 +222,14 @@ After this work, a beginner should be able to run a web system where a user can 
   Rationale: Multi-engine model inventory is now active and needs clearer, beginner-friendly selection controls.
   Date/Author: 2026-03-26 / Codex
 
-- Decision: ORDDC adapter command arguments must use absolute paths and runtime error summarization must prioritize traceback tails over warning prefixes.
-  Rationale: Prevents path-resolution failures in real deployments and exposes actionable root-cause errors in UI/API payloads.
-  Date/Author: 2026-03-26 / Codex
+
+- Decision: Integrate ShiYu GRDDC2022 as third engine via phased rollout (shiyu-cpu-ensemble-default and shiyu-yolov7x-640 first; MMDetection demo preset deferred to 3F).
+  Rationale: Delivers a stable third engine quickly while isolating higher-complexity two-stage integration into a follow-up milestone.
+  Date/Author: 2026-03-28 / Codex
+
+- Decision: Inference-page engine-family options must be derived dynamically from /models instead of hardcoded family lists.
+  Rationale: Prevents repeated frontend rewrites for every new engine onboarding and keeps multi-engine UX scalable.
+  Date/Author: 2026-03-28 / Codex
 
 - Decision: Upload validation now enforces extension-consistent image signature checks (`jpeg/png`) before job persistence.
   Rationale: Prevents non-image payloads and mismatched file content from entering engine execution paths.
@@ -274,11 +290,22 @@ Bugfix outcome (2026-03-26): ORDDC runtime failure after ~30s was resolved by sw
 
 Milestone 3 hardening outcome (2026-03-27): backend now rejects invalid/mismatched image bytes (`INVALID_IMAGE_CONTENT`), emits structured inference lifecycle logs (`job_id/model_id/engine_id/status/error_code/duration`), and enforces atomic queued-claim with cancellation-safe success finalization; Test Engineer verified milestone suites (`test_inference_jobs`, `test_inference_execution`, `test_history`) passing (`28 passed`).
 
-Confidence UI outcome (2026-03-27): inference detection and history cards no longer render confidence/max-confidence in frontend; backend confidence fields remain unchanged for future engine upgrades.
+
+Milestone 3E outcome (2026-03-28): backend now registers shiyu-grddc2022-cli with phased presets (shiyu-cpu-ensemble-default, shiyu-yolov7x-640), executes ensemble orchestration (YOLOv7 -> YOLOv5 -> merge), and returns merged-result detections with final annotated image rendered from merged boxes.
+
+Milestone 3E frontend outcome (2026-03-28): inference engine-family selector now derives options dynamically from /models, including GRDDC2022, while preserving grouped model selection and persisted fallback behavior.
+
+Milestone 3E follow-up outcome (2026-03-28): third-engine adapter quality gaps were closed (step-context preflight messages and deterministic missing-target parse errors), and frontend tests now include unknown engine-family fallback coverage.
+
+Post-release GRDDC runtime bugfix outcome (2026-03-28): inference no longer fails when Pillow is missing in runtime environment; adapter now emits a fallback annotated artifact by copying the original image, keeping job completion and detection payloads available.
+
+Milestone 3E verification status (2026-03-28): code implementation is complete, but formal Test Engineer closure is still pending one local-host rerun because Codex sandbox permission errors block adapter-suite and frontend-unit execution in this environment.
+
+Milestone 3F plan note (2026-03-28): shiyu-y7x640-faster-swin-w7 remains planned and blocked on Milestone 3E stability evidence from Test Engineer verification.
 
 ## Context and Orientation
 
-Current state includes a working Milestone 2 MVP in `backend/` and `frontend/` (auth, models, async inference jobs, authenticated job-image retrieval, and history). The first inference runtime integrated is the sibling directory `D:\road_defect_detection\rddc2020`, with its primary script at `D:\road_defect_detection\rddc2020\yolov5\detect.py`.
+Current state includes the Milestone 2 MVP foundation extended through Milestone 3E in `backend/` and `frontend/` (auth, models, async inference jobs, authenticated job-image retrieval, history, and multi-engine integration). Active runtimes are `rddc2020`, `orddc2024`, and `ShiYu_SeaView_GRDDC2022`.
 
 In this repository, an inference engine means an implementation that can execute inference jobs and return normalized outputs. An inference adapter means the backend interface layer that maps generic job requests into engine-specific execution details.
 
@@ -296,7 +323,10 @@ Milestone 2D is complete. Frontend now uses async job create + polling flow, ren
 
 Milestone 3C is complete. The second engine (`orddc2024-cli`) is integrated through the existing adapter contract and async job APIs, with Phase 1 and Phase 2 ORDDC scripts exposed as model presets without frontend/API contract changes.
 
-Milestone 3D is complete. Frontend inference UX now supports multi-engine model selection with engine-family filtering and grouped options.
+
+Milestone 3E is complete. The third engine (shiyu-grddc2022-cli) is integrated through the existing adapter contract and async job APIs, with phased presets and merged-result annotation policy.
+
+Milestone 3F (planned) adds the GRDDC2022 one-stage + two-stage demonstration preset (shiyu-y7x640-faster-swin-w7) after 3E stabilization.
 
 Milestone 4A (planned) adds async video inference jobs (`create + poll + cancel`) reusing current lifecycle patterns and history model with video-specific result metadata.
 
@@ -335,7 +365,7 @@ Validation must prove:
 - Concurrent jobs do not overwrite each other's outputs.
 - Invalid model selection fails with documented error codes.
 - Engine execution failure is surfaced as `failed` job with error metadata.
-- API contracts remain stable for adding second engine later.
+- API contracts remain stable for adding additional engines later.
 
 ## Idempotence and Recovery
 
@@ -351,7 +381,7 @@ Maintain these artifacts during implementation:
     docs/architecture/data-model.md
     docs/operations/runbook.md
     docs/engineering/test-engineer-workflow.md
-    docs/architecture/orddc2024-integration-design.md
+    docs/architecture/shiyu-grddc2022-integration-design.md
     docs/contracts/video-inference-job-contract.md
     docs/architecture/video-support-design.md
 
@@ -421,4 +451,12 @@ Plan change note (2026-03-26 / Codex): Implemented Milestone 3D frontend multi-e
 Plan change note (2026-03-26 / Codex): Closed ORDDC post-release runtime failure by fixing absolute path command args and traceback-tail error reporting; verified Phase1/Phase2 success with Test Engineer evidence.
 Plan change note (2026-03-27 / Codex): Implemented Milestone 3 hardening (upload content validation, structured job logging, atomic job claim/finalization safety) and aligned backend integration tests with Test Engineer verification evidence.
 Plan change note (2026-03-27 / Codex): Applied UI-only confidence policy (removed confidence/max-confidence display in frontend, retained backend confidence contract) and synchronized docs.
+
+
+Plan change note (2026-03-28 / Codex): Implemented Milestone 3E third-engine integration (shiyu-grddc2022-cli) with phased presets, merged-result annotated rendering, and dynamic frontend engine-family filtering.
+Plan change note (2026-03-28 / Codex): Applied Milestone 3E follow-up hardening (step-context preflight errors, deterministic missing-target parse guard, unknown engine-family frontend fallback test coverage) and logged Test Engineer verification blockers (`BUG-20260328-003/004`).
+Plan change note (2026-03-28 / Codex): Fixed GRDDC runtime failure on missing Pillow by adding a non-fatal annotated-image fallback (copy original image) and added adapter test coverage for the fallback behavior.
+
+
+
 

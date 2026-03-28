@@ -27,7 +27,7 @@ def test_models_requires_authentication(client):
     assert response.json()["error"]["code"] == "AUTH_TOKEN_INVALID"
 
 
-def test_models_returns_rddc2020_and_orddc2024_presets(client):
+def test_models_returns_rddc2020_orddc2024_and_shiyu_presets(client):
     headers = _register_and_auth(client)
 
     response = client.get("/models", headers=headers)
@@ -41,10 +41,13 @@ def test_models_returns_rddc2020_and_orddc2024_presets(client):
     assert "rddc2020-imsc-last95" in model_ids
     assert "orddc2024-phase1-ensemble" in model_ids
     assert "orddc2024-phase2-ensemble" in model_ids
+    assert "shiyu-cpu-ensemble-default" in model_ids
+    assert "shiyu-yolov7x-640" in model_ids
 
     engine_ids = {item["engine_id"] for item in items}
     assert "rddc2020-cli" in engine_ids
     assert "orddc2024-cli" in engine_ids
+    assert "shiyu-grddc2022-cli" in engine_ids
 
     assert all("status" in item for item in items)
     assert all("performance_notes" in item for item in items)
@@ -65,6 +68,7 @@ def test_create_inference_job_returns_queued_job(client):
     assert payload["success"] is True
     assert payload["data"]["status"] == "queued"
     assert payload["data"]["engine_id"] == "rddc2020-cli"
+
 def test_create_inference_job_returns_queued_job_for_orddc2024_model(client):
     headers = _register_and_auth(client)
 
@@ -82,6 +86,23 @@ def test_create_inference_job_returns_queued_job_for_orddc2024_model(client):
     assert payload["data"]["engine_id"] == "orddc2024-cli"
 
 
+
+
+def test_create_inference_job_returns_queued_job_for_shiyu_model(client):
+    headers = _register_and_auth(client)
+
+    response = client.post(
+        "/inference/jobs",
+        headers=headers,
+        data={"model_id": "shiyu-yolov7x-640"},
+        files={"image": ("road.png", VALID_IMAGE_BYTES, "image/png")},
+    )
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["success"] is True
+    assert payload["data"]["status"] == "queued"
+    assert payload["data"]["engine_id"] == "shiyu-grddc2022-cli"
 
 def test_create_inference_job_rejects_invalid_image_content(client):
     headers = _register_and_auth(client)

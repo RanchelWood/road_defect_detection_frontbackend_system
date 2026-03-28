@@ -1,6 +1,6 @@
 # Backend (FastAPI)
 
-This backend now includes Milestone 3C multi-engine MVP APIs:
+This backend now includes Milestone 3E multi-engine MVP APIs:
 
 - `GET /health`
 - `POST /auth/register`
@@ -28,12 +28,22 @@ Core behavior:
 - External engine adapter integration:
   - `rddc2020-cli`
   - `orddc2024-cli` (second engine)
+  - `shiyu-grddc2022-cli` (third engine)
 
-## Runtime Notes (ORDDC2024)
+## Runtime Notes
+
+ORDDC2024:
 
 - Default ORDDC python path: `D:\anaconda3\envs\orddc2024\python.exe`
 - Default ORDDC root path: `D:\road_defect_detection\orddc2024-main`
 - Required ORDDC cache folders: `models_ph1`, `models_ph2`
+
+ShiYu GRDDC2022:
+
+- Default ShiYu python path: `D:\anaconda3\envs\crddc2022\python.exe`
+- Default ShiYu root path: `D:\road_defect_detection\ShiYu_SeaView_GRDDC2022`
+- Required scripts/weights: `yolov7/detect.py`, `yolov5/detect.py`, `merge.py`, `YOLOv7x_640.pt`, `YOLOv5x_640.pt`
+- Annotated-image behavior: when `Pillow` is available, merged detections are drawn; if `Pillow` is missing, adapter falls back to copying original image so job completion is not blocked.
 
 ## Local Run
 
@@ -72,4 +82,3 @@ Expected response body shape:
 cd backend
 .\.venv\Scripts\python.exe -m pytest tests
 ```
-

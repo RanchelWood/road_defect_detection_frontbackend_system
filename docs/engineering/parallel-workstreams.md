@@ -43,18 +43,22 @@ Deliverables:
 - Stable async jobs API with cancel semantics.
 - Multi-engine model/engine contract and schema alignment.
 
-## Workstream C: Inference Engine Integration (First Engine)
+## Workstream C: Inference Engine Integrations (Active)
 
 Ownership:
 
-- `plans/execplan-road-damage-system-mvp.md` Milestone 2B/2C details
-- engine integration design notes and operational assumptions
+- `plans/execplan-road-damage-system-mvp.md` Milestone 2-3E integration details
+- `docs/architecture/orddc2024-integration-design.md`
+- `docs/architecture/shiyu-grddc2022-integration-design.md`
+- engine integration operational assumptions
 
 Deliverables:
 
-- `rddc2020-cli` adapter plan.
+- Active adapter coverage for `rddc2020-cli`, `orddc2024-cli`, `shiyu-grddc2022-cli`.
 - Per-job working/output isolation plan.
 - Output parsing normalization contract.
+- Runtime fallback policy for degraded dependencies (for example Pillow-missing annotated-image fallback).
+
 
 ## Workstream D: Infra and Operations
 
