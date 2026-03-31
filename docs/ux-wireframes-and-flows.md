@@ -69,7 +69,7 @@ flowchart LR
 ### 4) Image Inference Page (Async Job Flow)
 
     +--------------------------------------------------------------------------------+
-    | Engine family: [ All | RDDC2020 | ORDDC2024 ]                                  |
+    | Engine family: [ All | RDDC2020 | ORDDC2024 | GRDDC2022 | ...dynamic ]       |
     | Model: [ rddc2020-imsc-last95 v ] (grouped by engine)                          |
     | Upload Image: [ Choose File ]                                                   |
     | [ Submit Job ]                                                                  |
@@ -138,3 +138,4 @@ Planned video UX rules:
 - Video page must show pipeline stage labels (`preparing_frames`, `running`, `rendering`) explicitly.
 - Video default model should prioritize throughput (`orddc2024-phase2-ensemble`).
 - Streaming (Phase 4B) should be optional and not remove async video fallback.
+

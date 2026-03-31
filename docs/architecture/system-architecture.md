@@ -4,7 +4,7 @@
 
 - Frontend: React + TypeScript + Tailwind.
 - Backend: FastAPI with route/service/model separation.
-- Inference integration strategy: external engine adapters (active: `rddc2020-cli`, `orddc2024-cli`).
+- Inference integration strategy: external engine adapters (active: `rddc2020-cli`, `orddc2024-cli`, `shiyu-grddc2022-cli`).
 - Data: SQLite in v1 with migration-ready patterns.
 - Media storage: local disk volume under backend-managed paths.
 - Deployment: Docker Compose on one VM, CPU-first default.
@@ -13,7 +13,7 @@
 
 - `frontend`: browser UI, auth session handling, job polling/cancel UX.
 - `backend`: auth, model listing, job lifecycle API, history API, and adapter orchestration.
-- `inference runtimes` (sibling paths/services): execute engine-specific command(s) (`rddc2020` and `orddc2024` active).
+- `inference runtimes` (sibling paths/services): execute engine-specific command(s) (`rddc2020`, `orddc2024`, `ShiYu_SeaView_GRDDC2022` active).
 
 The backend does not hardcode one runtime path into API contracts. Jobs resolve through an adapter interface keyed by `engine_id` and `model_id`.
 
@@ -21,7 +21,7 @@ The backend does not hardcode one runtime path into API contracts. Jobs resolve 
 
 - `backend/app/api/routes`: request/response handlers (`/auth`, `/models`, `/inference/jobs`, `/history`).
 - `backend/app/services`: business logic (auth, model registry, inference jobs, dispatch, adapter orchestration).
-- `backend/app/services/adapters`: one adapter module per inference engine (currently `rddc2020.py`, `orddc2024.py`).
+- `backend/app/services/adapters`: one adapter module per inference engine (`rddc2020.py`, `orddc2024.py`, `shiyu_grddc2022.py`).
 - `backend/app/models`: ORM entities (`User`, `RefreshTokenSession`, `InferenceJob`).
 - `backend/app/schemas`: API payload definitions.
 
@@ -47,13 +47,15 @@ Planned first video default model is `orddc2024-phase2-ensemble` because it is s
 
 - Phase 1 complete: auth + health scaffold.
 - Phase 2 complete: async image inference jobs via external `rddc2020` adapter.
-- Phase 3 ongoing: hardening, observability, concurrency safety, test depth, and post-integration stabilization for active second engine (`orddc2024`).
+- Phase 3 implementation complete through Milestone 3E: hardening + multi-engine onboarding (`orddc2024`, `shiyu-grddc2022`).
+- Phase 3F planned: GRDDC2022 one-stage + two-stage demo preset after 3E stability evidence closes.
 - Phase 4A planned: async video jobs.
 - Phase 4B planned: WebSocket streaming path.
 
 ## Planning References
 
 - `docs/architecture/orddc2024-integration-design.md`
+- `docs/architecture/shiyu-grddc2022-integration-design.md`
 - `docs/architecture/video-support-design.md`
 - `docs/contracts/video-inference-job-contract.md`
 - `docs/contracts/realtime-websocket-contract.md`

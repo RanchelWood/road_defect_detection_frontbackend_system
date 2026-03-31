@@ -3,6 +3,7 @@ from functools import lru_cache
 from app.services.adapters.base import InferenceEngineAdapter
 from app.services.adapters.orddc2024 import Orddc2024Adapter
 from app.services.adapters.rddc2020 import Rddc2020Adapter
+from app.services.adapters.shiyu_grddc2022 import ShiyuGrddc2022Adapter
 
 
 class InferenceEngineRegistry:
@@ -18,4 +19,5 @@ class InferenceEngineRegistry:
 
 @lru_cache
 def get_engine_registry() -> InferenceEngineRegistry:
-    return InferenceEngineRegistry(adapters=[Rddc2020Adapter(), Orddc2024Adapter()])
+    return InferenceEngineRegistry(adapters=[Rddc2020Adapter(), Orddc2024Adapter(), ShiyuGrddc2022Adapter()])
+

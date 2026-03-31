@@ -116,6 +116,33 @@ beforeEach(() => {
         description: "ORDDC2024 high-accuracy model",
         runtime_type: "python",
       },
+      {
+        model_id: "grddc2022-main",
+        engine_id: "shiyu-grddc2022-cli",
+        status: "active",
+        performance_notes: "Experimental model family",
+        display_name: "GRDDC2022 Main",
+        description: "GRDDC2022 model",
+        runtime_type: "python",
+      },
+      {
+        model_id: "shiyu-y7x640-faster-swin-w7",
+        engine_id: "shiyu-grddc2022-cli",
+        status: "active",
+        performance_notes: "Demo two-stage preset with slower CPU profile",
+        display_name: "Shiyu Y7x640 Faster-Swin W7 (Demo two-stage, slower CPU)",
+        description: "GRDDC2022 demo two-stage preset",
+        runtime_type: "python",
+      },
+      {
+        model_id: "custom-engine-model",
+        engine_id: "custom-engine-v1",
+        status: "active",
+        performance_notes: null,
+        display_name: "Custom Engine Model",
+        description: "Unknown engine family model",
+        runtime_type: "python",
+      },
     ],
   };
 
@@ -124,6 +151,40 @@ beforeEach(() => {
 });
 
 describe("InferencePage", () => {
+  it("derives engine family options dynamically including GRDDC2022", async () => {
+    renderInferencePage();
+
+    const engineFamilySelect = (await screen.findByLabelText("Engine family")) as HTMLSelectElement;
+    const optionValues = Array.from(engineFamilySelect.options).map((option) => option.value);
+    const optionLabels = Array.from(engineFamilySelect.options).map((option) => option.textContent ?? "");
+
+    expect(optionValues).toEqual(expect.arrayContaining(["all", "rddc2020", "orddc2024", "grddc2022"]));
+    expect(optionLabels).toEqual(expect.arrayContaining(["All", "RDDC2020", "ORDDC2024", "GRDDC2022"]));
+  });
+
+  it("normalizes unknown engine ids into fallback family labels and filters to matching models", async () => {
+    renderInferencePage();
+
+    const engineFamilySelect = (await screen.findByLabelText("Engine family")) as HTMLSelectElement;
+    const unknownFamilyOption = Array.from(engineFamilySelect.options).find(
+      (option) => option.value === "engine:custom-engine-v1",
+    );
+    expect(unknownFamilyOption?.textContent).toBe("CUSTOM ENGINE V1");
+
+    const modelSelect = screen.getByLabelText("Model") as HTMLSelectElement;
+    fireEvent.change(engineFamilySelect, { target: { value: "engine:custom-engine-v1" } });
+
+    await waitFor(() => {
+      expect(modelSelect.value).toBe("custom-engine-model");
+    });
+
+    const optionValues = Array.from(modelSelect.querySelectorAll("option")).map((option) => option.value);
+    expect(optionValues).toEqual(["custom-engine-model"]);
+
+    const groupLabels = Array.from(modelSelect.querySelectorAll("optgroup")).map((group) => group.label);
+    expect(groupLabels).toEqual(["CUSTOM ENGINE V1 (custom-engine-v1)"]);
+  });
+
   it("filters model options by engine family and keeps options grouped by engine", async () => {
     renderInferencePage();
 
@@ -132,6 +193,7 @@ describe("InferencePage", () => {
     const initialGroups = Array.from(modelSelect.querySelectorAll("optgroup")).map((group) => group.label);
     expect(initialGroups).toContain("RDDC2020 (rddc2020-cli)");
     expect(initialGroups).toContain("ORDDC2024 (orddc2024-cli)");
+    expect(initialGroups).toContain("GRDDC2022 (shiyu-grddc2022-cli)");
 
     fireEvent.change(screen.getByLabelText("Engine family"), { target: { value: "orddc2024" } });
 
@@ -144,6 +206,25 @@ describe("InferencePage", () => {
 
     const filteredGroups = Array.from(modelSelect.querySelectorAll("optgroup")).map((group) => group.label);
     expect(filteredGroups).toEqual(["ORDDC2024 (orddc2024-cli)"]);
+  });
+
+  it("shows both GRDDC2022 presets when filtering by GRDDC2022 family", async () => {
+    renderInferencePage();
+
+    const modelSelect = (await screen.findByLabelText("Model")) as HTMLSelectElement;
+    const engineFamilySelect = screen.getByLabelText("Engine family");
+
+    fireEvent.change(engineFamilySelect, { target: { value: "grddc2022" } });
+
+    await waitFor(() => {
+      expect(modelSelect.value).toBe("grddc2022-main");
+    });
+
+    const optionValues = Array.from(modelSelect.querySelectorAll("option")).map((option) => option.value);
+    expect(optionValues).toEqual(["grddc2022-main", "shiyu-y7x640-faster-swin-w7"]);
+
+    const groupLabels = Array.from(modelSelect.querySelectorAll("optgroup")).map((group) => group.label);
+    expect(groupLabels).toEqual(["GRDDC2022 (shiyu-grddc2022-cli)"]);
   });
 
   it("restores selected model from localStorage when available", async () => {
@@ -163,13 +244,13 @@ describe("InferencePage", () => {
     const modelSelect = (await screen.findByLabelText("Model")) as HTMLSelectElement;
     expect(modelSelect.value).toBe("rddc2020-fast");
 
-    fireEvent.change(screen.getByLabelText("Engine family"), { target: { value: "orddc2024" } });
+    fireEvent.change(screen.getByLabelText("Engine family"), { target: { value: "grddc2022" } });
 
     await waitFor(() => {
-      expect(modelSelect.value).toBe("orddc2024-main");
+      expect(modelSelect.value).toBe("grddc2022-main");
     });
 
-    expect(localStorage.getItem(SELECTED_MODEL_STORAGE_KEY)).toBe("orddc2024-main");
+    expect(localStorage.getItem(SELECTED_MODEL_STORAGE_KEY)).toBe("grddc2022-main");
   });
 
   it("allows cancelling a running job and shows cancelled state", async () => {
@@ -199,3 +280,4 @@ describe("InferencePage", () => {
     });
   });
 });
+

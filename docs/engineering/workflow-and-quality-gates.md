@@ -12,7 +12,7 @@ This workflow is beginner-friendly and aligned with external engine integration.
 
 ## Team Roles and Ownership
 
-- Team Leader: triage owner, delegation owner, closure owner, junior developer guide, and **test-evidence reviewer**.
+- Team Leader: triage owner, delegation owner, closure owner, junior developer guide, **test-evidence reviewer**, and **mandatory documentation-review owner**.
 - Frontend Engineer: GUI, frontend state, navigation, and API integration handling in `frontend/`.
 - Backend Engineer: API behavior, validation, persistence, and runtime integration in `backend/`.
 - Test Engineer: **executes required test suites**, performs exploratory/manual validation, and submits reproducible evidence.
@@ -32,11 +32,20 @@ Frontend:
 2. Install dependencies in `frontend`.
 3. Start dev server.
 
-External engine runtime (`rddc2020`):
+External engine runtimes (active):
 
-1. Ensure sibling path exists: `D:\road_defect_detection\rddc2020`.
-2. Ensure engine dependencies and weights are available in that runtime.
-3. Validate `detect.py` command manually before backend adapter integration tests.
+1. `rddc2020` runtime:
+   - Ensure sibling path exists: `D:\road_defect_detection\rddc2020`.
+   - Ensure engine dependencies and weights are available.
+2. `orddc2024` runtime:
+   - Ensure root exists: `D:\road_defect_detection\orddc2024-main`.
+   - Ensure dedicated python env path is valid (`D:\anaconda3\envs\orddc2024\python.exe` or env override).
+   - Ensure model cache folders exist (`models_ph1`, `models_ph2`).
+3. `shiyu-grddc2022` runtime:
+   - Ensure root exists: `D:\road_defect_detection\ShiYu_SeaView_GRDDC2022`.
+   - Ensure dedicated python env path is valid (`D:\anaconda3\envs\crddc2022\python.exe` or env override).
+   - Ensure required scripts/weights exist (`yolov7/detect.py`, `yolov5/detect.py`, `merge.py`, `YOLOv7x_640.pt`, `YOLOv5x_640.pt`).
+
 
 ## Frontend Automation Stack (Implemented)
 
@@ -96,6 +105,20 @@ Required evidence from Test Engineer:
 - Relevant artifacts (Playwright traces/videos/screenshots).
 - Retest decision: `close` or `re-triage`.
 
+## Documentation Review Ownership (Mandatory)
+
+After coding and after Test Engineer pass evidence, Team Leader must run an auto-documentation review before closure.
+
+Minimum required review scope:
+
+- `plans/execplan-road-damage-system-mvp.md` (`Progress`, `Decision Log`, and milestone status checkboxes).
+- Milestone/patch-related architecture and contract docs under `docs/architecture/` and `docs/contracts/`.
+- Operations and workflow docs impacted by the change (`docs/operations/`, `docs/engineering/`).
+- Any user-facing summary file affected by behavior changes (`docs/project-summary.md`, `README.md` when applicable).
+
+Closure gate rule:
+
+- A coding task is not considered closed until Team Leader confirms the documentation review is complete and required Markdown updates are committed.
 ## Bug Lifecycle and Verification Gate
 
 Required status model:
@@ -114,7 +137,7 @@ Required flow:
 3. Assigned engineer works in `in progress` and submits fix as `fixed`.
 4. Team Leader sends issue to Test Engineer and marks `needs retest`.
 5. Test Engineer executes required suites and manual checks, then reports evidence:
-   - pass -> `closed`
+   - pass -> Team Leader completes mandatory documentation review, then `closed`
    - fail -> reopen to `triaged` with retest evidence.
 
 Closure rule:
@@ -138,6 +161,7 @@ Current required gates (active now):
 - Frontend build (`npm run build`) passes.
 - API contract changes reflected in docs.
 - ExecPlan progress and Decision Log updated.
+- Team Leader documentation review completed for all milestone/patch-related Markdown files.
 - Every bug/feature closure includes Test Engineer executed-command evidence.
 
 ## Non-Functional Baselines
@@ -155,3 +179,5 @@ Current required gates (active now):
 - Server-side validation for `model_id` and job ownership.
 - External command execution strictly from allowlisted model presets and paths.
 - Secrets through env vars only.
+
+

@@ -75,6 +75,7 @@ For each bug/retest cycle:
 2. Capture command outputs and failing test IDs (if any).
 3. Attach Playwright evidence when generated.
 4. Report pass/fail recommendation using the retest template.
+5. If runner startup fails with sandbox permission errors (for example WinError 5 temp-dir access or EPERM lstat on home paths), rerun the same commands outside sandbox/local-host terminal and attach that evidence explicitly.
 
 Command set by scope:
 

@@ -43,6 +43,7 @@ Guardrails:
 - Do not make speculative code changes unless explicitly assigned implementation work.
 - Team Leader does not run routine test suites for bug closure.
 - Team Leader verifies Test Engineer evidence quality and closes only after passing retest evidence.
+- After retest pass, Team Leader must complete mandatory milestone/patch Markdown documentation review before closure.
 
 ## Automation Augmentation (Implemented)
 
@@ -69,6 +70,7 @@ Baseline command matrix:
 - Frontend-only bug:
   - `cd frontend && npm run test:unit`
   - `cd frontend && npm run test:e2e:smoke` when auth/navigation/inference/history UI is affected
+  - If sandbox throws `EPERM` on Node startup paths (for example `C:\Users\...`), rerun the same commands in local host shell and attach that evidence.
 - Backend-only bug:
   - `cd backend && .\.venv\Scripts\python.exe -m pytest tests`
   - If temp-permission errors appear, rerun with explicit base temp: `cd backend && .\.venv\Scripts\python.exe -m pytest tests --basetemp=.pytest_tmp_run`
@@ -109,7 +111,7 @@ Minimum evidence block (required):
 4. Engineer submits fix with evidence (`fixed`).
 5. Team Leader sends fix to Test Engineer with retest request (`needs retest`).
 6. Test Engineer verifies by executing required test commands and manual checks:
-   - Pass: close issue (`closed`).
+   - Pass: Team Leader performs mandatory documentation review, then close issue (`closed`).
    - Fail: reopen with new evidence (`triaged`).
 
 ### Ownership Rules
@@ -122,6 +124,7 @@ Minimum evidence block (required):
 ### Closure Rule
 
 - No bug is closed without Test Engineer verification evidence that includes executed commands and results.
+- No bug/feature batch is closed until Team Leader confirms mandatory documentation review is complete.
 
 ## Standard Templates
 
@@ -200,7 +203,8 @@ Retest Result:
 - Related Vitest Evidence (if available):
 - Residual Issues:
 - Recommendation: close | re-triage
-Next Status: closed (if pass) | triaged (if fail)
+Documentation Review (Team Leader): pending | done
+Next Status: closed (if pass and doc review done) | triaged (if fail)
 Verified By:
 Verified At:
 ```
@@ -213,5 +217,6 @@ Verified At:
 - Run one short daily Team Leader triage pass.
 - Require bug ID in every engineer update.
 - Prefer small bug-fix batches and immediate retest handoff.
+- Add a quick end-of-cycle Team Leader doc sync pass as a non-skippable checklist item.
 - Keep reports concrete and reproducible; avoid vague statements.
 

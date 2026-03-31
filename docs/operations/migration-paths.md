@@ -28,6 +28,7 @@ This document captures upgrade paths from MVP defaults to scalable multi-engine 
 - Active adapters:
   - `rddc2020-cli`
   - `orddc2024-cli`
+  - `shiyu-grddc2022-cli`
 - Frontend request shape remains stable (`model_id` only).
 
 ## 5) Local Sibling Runtime -> Managed Inference Service
@@ -51,5 +52,7 @@ This document captures upgrade paths from MVP defaults to scalable multi-engine 
 ## Planning References
 
 - `docs/architecture/orddc2024-integration-design.md`
+- `docs/architecture/shiyu-grddc2022-integration-design.md`
 - `docs/architecture/video-support-design.md`
 - `docs/contracts/video-inference-job-contract.md`
+

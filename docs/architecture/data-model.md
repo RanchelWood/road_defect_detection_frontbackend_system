@@ -46,7 +46,11 @@ This document describes the current persisted schema in this repository and the 
 
 ## Model Registry and Engine Metadata (Current Runtime)
 
-- Model presets are defined in adapter code (currently `backend/app/services/adapters/rddc2020.py`).
+- Model presets are defined in adapter code.
+- Active adapters:
+  - `backend/app/services/adapters/rddc2020.py`
+  - `backend/app/services/adapters/orddc2024.py`
+  - `backend/app/services/adapters/shiyu_grddc2022.py`
 - Registry lookup happens through service layer (`ModelRegistryService` + engine registry).
 - History APIs include `model_id`, `engine_id`, and `original_filename` for UI rendering.
 
@@ -54,11 +58,12 @@ This document describes the current persisted schema in this repository and the 
 
 Future milestones may add explicit tables such as `InferenceEngine` and `ModelRegistryEntry` when dynamic model management is required. Current API contracts already use stable `engine_id`/`model_id` so this migration can be additive.
 
-## Notes for `rddc2020` Integration
+## Notes for Active Engine Integrations
 
 - Jobs run in per-job isolated workspace/output directories.
-- Adapter output (`results.csv` + annotated image) is normalized into `detections_json` and `output_path`.
+- Adapter outputs are normalized into `detections_json` and `output_path` for consistent API responses.
 - Runtime cancellation is represented by terminal status `cancelled` with `JOB_CANCELLED` error code context.
+- Current engines emit bbox + label data; `confidence` remains stored as nullable for forward compatibility.
 
 ## Migration-Ready Conventions
 

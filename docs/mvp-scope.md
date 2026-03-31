@@ -11,7 +11,7 @@ Deliver a web system where authenticated users submit road-defect image inferenc
 - User registration/login using email/password and JWT access control.
 - Model selector fed by backend model registry.
 - Asynchronous image inference job API (`create job` + `poll status` + `cancel job`).
-- External inference integration for active engines: `rddc2020` and `orddc2024` command-line runtimes.
+- External inference integration for active engines: `rddc2020`, `orddc2024`, and `shiyu-grddc2022` command-line runtimes.
 - Persisted inference history per user with model and engine metadata.
 - History controls: page size, model filter, and sorting (`time|id|name`, `asc|desc`).
 - Frontend usability additions: persisted model selection and persisted light/dark theme preference.
@@ -46,3 +46,4 @@ Deliver a web system where authenticated users submit road-defect image inferenc
 
 - `docs/architecture/video-support-design.md`
 - `docs/contracts/video-inference-job-contract.md`
+
