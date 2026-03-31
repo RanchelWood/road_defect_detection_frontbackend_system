@@ -12,7 +12,7 @@ This document defines parallel ownership for Milestone 2 external integration an
 
 Role split reminder:
 
-- Team Leader supervises triage, ownership, and closure readiness.
+- Team Leader supervises triage, ownership, closure readiness, and mandatory end-of-cycle documentation review.
 - Test Engineer executes required test suites and provides evidence.
 
 ## Workstream A: Product and UX
@@ -88,6 +88,7 @@ Deliverables:
 - Concurrency and failure-mode checklist.
 - Bug lifecycle governance (`new -> triaged -> in progress -> fixed -> needs retest -> closed`).
 - Decision-log consolidation in living ExecPlan.
+- Mandatory Team Leader auto-documentation review at coding completion (milestone and patch Markdown sync before closure).
 
 ## Workstream F: Bug Discovery, Test Execution, and Verification
 
@@ -106,3 +107,4 @@ Deliverables:
 - Active frontend QA automation deliverables:
   - Vitest `v4.1.0` unit/component regression pack
   - Playwright `v1.58.2` browser smoke/retest pack with trace artifacts
+

@@ -122,11 +122,13 @@ Team workflow uses a verification-gated bug lifecycle with Team Leader, Frontend
 Based on current plan/docs state:
 
 - Milestone 1, 2, 3, and 3E implementation are completed.
-- Milestone 3F is planned.
+- Milestone 3F implementation is in progress (core code landed for `shiyu-y7x640-faster-swin-w7`; final closure pending runtime smoke evidence).
 - Milestone 4 is pending (video-focused async jobs, then optional real-time streaming path).
 
 Practical interpretation:
+- GRDDC2022 now has a demo two-stage preset (`shiyu-y7x640-faster-swin-w7`) wired into model registry and adapter orchestration.
 
 - Image inference flow is end-to-end implemented with three active engines.
 - `BUG-20260328-003/004` were closed on 2026-03-31 with Test Engineer outside-sandbox retest evidence (`backend: 6 passed`, `frontend: 1 file / 6 tests passed`); note that Codex in-sandbox runs can still show temp/home permission limits.
 - Video capabilities are designed/planned but not yet in main runtime flow.
+

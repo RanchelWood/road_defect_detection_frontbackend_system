@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     shiyu_grddc2022_device: str = "cpu"
     shiyu_grddc2022_timeout_seconds_single: int = 180
     shiyu_grddc2022_timeout_seconds_ensemble: int = 360
+    shiyu_grddc2022_timeout_seconds_mmdet: int = 360
+    shiyu_grddc2022_mmdet_config: str = r"configs\\swin\\faster_swin_l.py"
+    shiyu_grddc2022_mmdet_checkpoint: str = "Faster_Swin_l_w7_ms_1and2.pth"
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -100,12 +100,17 @@ Use this checklist for second-engine reliability:
 Use this checklist for third-engine reliability:
 
 - `shiyu_grddc2022_root` exists and includes `yolov7/detect.py`, `yolov5/detect.py`, and `merge.py`.
+- `shiyu_grddc2022_root` also contains MMDetection assets used by `shiyu-y7x640-faster-swin-w7`:
+  - `mmdetection/inference.py`
+  - `mmdetection/configs/swin/faster_swin_l.py` (or env override target)
+  - `mmdetection/Faster_Swin_l_w7_ms_1and2.pth` (or env override target)
 - Configured python executable points to dedicated env: `D:\anaconda3\envs\crddc2022\python.exe` (or override via env var).
 - Required weights exist:
   - `yolov7/YOLOv7x_640.pt`
   - `yolov5/YOLOv5x_640.pt`
 - `yolov5/data/rdd.yaml` exists for YOLOv5 command.
-- Preset-specific timeout values are tuned (`SHIYU_GRDDC2022_TIMEOUT_SECONDS_SINGLE`, `SHIYU_GRDDC2022_TIMEOUT_SECONDS_ENSEMBLE`).
+- Preset-specific timeout values are tuned (`SHIYU_GRDDC2022_TIMEOUT_SECONDS_SINGLE`, `SHIYU_GRDDC2022_TIMEOUT_SECONDS_ENSEMBLE`, `SHIYU_GRDDC2022_TIMEOUT_SECONDS_MMDET`).
+- MMDetection config/checkpoint env overrides are valid if customized (`SHIYU_GRDDC2022_MMDET_CONFIG`, `SHIYU_GRDDC2022_MMDET_CHECKPOINT`).
 - Ensemble final annotated image is generated from merged detections (not child-model overlay reuse).
 - If `Pillow` is unavailable, adapter falls back to copying original image so job completion is not blocked (overlay drawing is skipped).
 
@@ -139,3 +144,4 @@ Use this checklist before enabling async video jobs:
 - Team workflow gate for Milestone 3 uses targeted backend suites for verification when this environment constraint appears.
 - For Milestone 3E adapter tests, even isolated `--basetemp` runs can still fail during pytest tmpdir cleanup with `PermissionError: [WinError 5]` in this sandbox.
 - Frontend Vitest/Playwright startup in this sandbox can fail before runner execution with `EPERM: operation not permitted, lstat 'C:\Users\18926'`; use a local host shell for closure evidence when this occurs.
+

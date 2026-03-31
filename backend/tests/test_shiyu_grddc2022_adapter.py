@@ -20,14 +20,19 @@ def _build_shiyu_root(tmp_path: Path) -> tuple[Settings, Path]:
     root = tmp_path / "shiyu"
     (root / "yolov7").mkdir(parents=True)
     (root / "yolov5" / "data").mkdir(parents=True)
+    (root / "mmdetection" / "configs" / "swin").mkdir(parents=True)
+    (root / "mmdetection" / "results_mmdet").mkdir(parents=True)
 
     (root / "yolov7" / "detect.py").write_text("print('y7')", encoding="utf-8")
     (root / "yolov5" / "detect.py").write_text("print('y5')", encoding="utf-8")
     (root / "merge.py").write_text("print('merge')", encoding="utf-8")
+    (root / "mmdetection" / "inference.py").write_text("print('mmdet')", encoding="utf-8")
 
     (root / "yolov7" / "YOLOv7x_640.pt").write_bytes(b"w")
     (root / "yolov5" / "YOLOv5x_640.pt").write_bytes(b"w")
     (root / "yolov5" / "data" / "rdd.yaml").write_text("names: []", encoding="utf-8")
+    (root / "mmdetection" / "configs" / "swin" / "faster_swin_l.py").write_text("model = dict()", encoding="utf-8")
+    (root / "mmdetection" / "Faster_Swin_l_w7_ms_1and2.pth").write_bytes(b"w")
 
     settings = Settings(
         shiyu_grddc2022_python_path=str(python_exe),
@@ -35,6 +40,9 @@ def _build_shiyu_root(tmp_path: Path) -> tuple[Settings, Path]:
         shiyu_grddc2022_device="cpu",
         shiyu_grddc2022_timeout_seconds_single=1,
         shiyu_grddc2022_timeout_seconds_ensemble=1,
+        shiyu_grddc2022_timeout_seconds_mmdet=1,
+        shiyu_grddc2022_mmdet_config=r"configs\swin\faster_swin_l.py",
+        shiyu_grddc2022_mmdet_checkpoint="Faster_Swin_l_w7_ms_1and2.pth",
     )
 
     return settings, root
@@ -117,6 +125,81 @@ def test_shiyu_adapter_ensemble_uses_absolute_paths_and_parses_merged_output(tmp
     assert [item["label"] for item in result.detections] == ["D40"]
     assert Path(result.annotated_image_path).exists()
 
+
+def test_shiyu_adapter_y7_mmdet_demo_preset_runs_y7_then_mmdet_then_merge(tmp_path, monkeypatch):
+    settings, _ = _build_shiyu_root(tmp_path)
+    adapter = ShiyuGrddc2022Adapter(settings=settings)
+    input_image = tmp_path / "road.png"
+    input_image.write_bytes(VALID_IMAGE_BYTES)
+
+    commands: list[list[str]] = []
+
+    class _SuccessfulProcess:
+        def __init__(self, command, *args, **kwargs):
+            _ = (args, kwargs)
+            commands.append(command)
+            self.command = command
+            self.returncode = 0
+
+        def communicate(self, timeout=None):
+            _ = timeout
+            cmd_text = " ".join(self.command)
+            if "yolov7" in cmd_text and "detect.py" in cmd_text:
+                project = Path(self.command[self.command.index("--project") + 1])
+                name = self.command[self.command.index("--name") + 1]
+                filename = self.command[self.command.index("--filename") + 1]
+                out = project / name / filename
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text("road.jpg,1 1 2 3 4\n", encoding="utf-8")
+            elif "mmdetection" in cmd_text and "inference.py" in cmd_text:
+                mmdet_root = Path(self.command[1]).parent
+                out = mmdet_root / "results_mmdet" / self.command[8]
+                out.parent.mkdir(parents=True, exist_ok=True)
+                out.write_text("road.jpg,3 5 6 7 8\n", encoding="utf-8")
+            elif self.command[1].endswith("merge.py"):
+                Path(self.command[4]).write_text("road.jpg,4 10 20 30 40\n", encoding="utf-8")
+            return "ok", ""
+
+        def poll(self):
+            return self.returncode
+
+        def terminate(self):
+            self.returncode = 1
+
+        def wait(self, timeout=None):
+            _ = timeout
+            return self.returncode
+
+        def kill(self):
+            self.returncode = -9
+
+    monkeypatch.setattr(subprocess, "Popen", _SuccessfulProcess)
+    monkeypatch.setattr(
+        adapter,
+        "_render_annotated_image",
+        lambda source_image_path, detections, output_path: output_path.write_bytes(b"boxed"),
+    )
+
+    monkeypatch.chdir(tmp_path)
+    model = next(item for item in adapter.list_models() if item.model_id == "shiyu-y7x640-faster-swin-w7")
+    result = adapter.run(str(input_image), "relative_workspace", model)
+
+    assert len(commands) == 3
+    assert commands[0][1].endswith("yolov7\\detect.py")
+    assert commands[1][1].endswith("mmdetection\\inference.py")
+    assert commands[2][1].endswith("merge.py")
+
+    mmdet_source = commands[1][4]
+    assert Path(mmdet_source).is_absolute()
+    assert mmdet_source.endswith("\\") or mmdet_source.endswith("/")
+    assert Path(commands[1][2]).is_absolute()
+    assert Path(commands[1][3]).is_absolute()
+    assert Path(commands[2][2]).is_absolute()
+    assert Path(commands[2][3]).is_absolute()
+    assert Path(commands[2][4]).is_absolute()
+
+    assert [item["label"] for item in result.detections] == ["D40"]
+    assert Path(result.annotated_image_path).exists()
 
 def test_shiyu_adapter_timeout_maps_to_engine_timeout(tmp_path, monkeypatch):
     settings, _ = _build_shiyu_root(tmp_path)

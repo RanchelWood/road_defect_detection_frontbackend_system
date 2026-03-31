@@ -43,6 +43,7 @@ def test_models_returns_rddc2020_orddc2024_and_shiyu_presets(client):
     assert "orddc2024-phase2-ensemble" in model_ids
     assert "shiyu-cpu-ensemble-default" in model_ids
     assert "shiyu-yolov7x-640" in model_ids
+    assert "shiyu-y7x640-faster-swin-w7" in model_ids
 
     engine_ids = {item["engine_id"] for item in items}
     assert "rddc2020-cli" in engine_ids

@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import time
@@ -43,6 +44,13 @@ class ShiyuGrddc2022Adapter(InferenceEngineAdapter):
                 display_name="ShiYu GRDDC2022 YOLOv7x 640",
                 description="Single YOLOv7x_640 fallback preset.",
                 performance_notes="Single-model fallback for faster rollout and diagnostics.",
+            ),
+            ModelPreset(
+                model_id="shiyu-y7x640-faster-swin-w7",
+                engine_id=self.engine_id,
+                display_name="ShiYu GRDDC2022 Y7x640 + Faster-Swin-W7",
+                description="Demo preset: YOLOv7x_640 first-stage + Faster-Swin-L W7 second-stage + merge.py",
+                performance_notes="Demo two-stage preset; slower on CPU than single-stage presets.",
             ),
         ]
 
@@ -93,6 +101,16 @@ class ShiyuGrddc2022Adapter(InferenceEngineAdapter):
             )
         elif model.model_id == "shiyu-yolov7x-640":
             detections = self._run_single_yolov7(
+                root=shiyu_root,
+                python_exe=python_exe,
+                image_root=image_root,
+                logs_dir=logs_dir,
+                run_log_path=run_log_path,
+                target_stem=source_path.stem,
+                cancel_requested=cancel_requested,
+            )
+        elif model.model_id == "shiyu-y7x640-faster-swin-w7":
+            detections = self._run_y7_mmdet_merge(
                 root=shiyu_root,
                 python_exe=python_exe,
                 image_root=image_root,
@@ -165,6 +183,66 @@ class ShiyuGrddc2022Adapter(InferenceEngineAdapter):
                 str(merge_script.resolve()),
                 str(y7_result.resolve()),
                 str(y5_result.resolve()),
+                str(merged_result.resolve()),
+            ],
+            cwd=root,
+            timeout_seconds=self._settings.shiyu_grddc2022_timeout_seconds_ensemble,
+            run_log_path=run_log_path,
+            cancel_requested=cancel_requested,
+        )
+
+        if not merged_result.exists() or merged_result.stat().st_size == 0:
+            raise AdapterExecutionError(
+                "ENGINE_OUTPUT_MISSING",
+                f"[merge] Missing or empty merged output: {merged_result}",
+            )
+
+        return self._parse_detection_file(merged_result, target_stem)
+
+    def _run_y7_mmdet_merge(
+        self,
+        root: Path,
+        python_exe: Path,
+        image_root: Path,
+        logs_dir: Path,
+        run_log_path: Path,
+        target_stem: str,
+        cancel_requested: Callable[[], bool] | None,
+    ) -> list[dict[str, object]]:
+        y7_result = logs_dir / "y7_result.txt"
+        mmdet_result = logs_dir / "mmdet_result.txt"
+        merged_result = logs_dir / "merged_result.txt"
+
+        self._run_yolov7_step(
+            root=root,
+            python_exe=python_exe,
+            image_root=image_root,
+            output_txt=y7_result,
+            run_log_path=run_log_path,
+            cancel_requested=cancel_requested,
+        )
+        self._run_mmdet_step(
+            root=root,
+            python_exe=python_exe,
+            image_root=image_root,
+            output_txt=mmdet_result,
+            run_log_path=run_log_path,
+            cancel_requested=cancel_requested,
+        )
+
+        if merged_result.exists():
+            merged_result.unlink()
+
+        merge_script = root / "merge.py"
+        self._ensure_file_exists(merge_script, "ENGINE_NOT_RUNNABLE", "Missing merge.py script")
+
+        self._run_process_step(
+            step_name="merge",
+            command=[
+                str(python_exe.resolve()),
+                str(merge_script.resolve()),
+                str(y7_result.resolve()),
+                str(mmdet_result.resolve()),
                 str(merged_result.resolve()),
             ],
             cwd=root,
@@ -326,6 +404,67 @@ class ShiyuGrddc2022Adapter(InferenceEngineAdapter):
             raise AdapterExecutionError(
                 "ENGINE_OUTPUT_MISSING",
                 f"[yolov5_detect] Missing or empty output: {produced}",
+            )
+
+        shutil.copy2(produced, output_txt)
+
+    def _run_mmdet_step(
+        self,
+        root: Path,
+        python_exe: Path,
+        image_root: Path,
+        output_txt: Path,
+        run_log_path: Path,
+        cancel_requested: Callable[[], bool] | None,
+    ) -> None:
+        mmdet_root = (root / "mmdetection").resolve()
+        script = mmdet_root / "inference.py"
+
+        config_value = Path(self._settings.shiyu_grddc2022_mmdet_config)
+        checkpoint_value = Path(self._settings.shiyu_grddc2022_mmdet_checkpoint)
+
+        config_path = config_value if config_value.is_absolute() else mmdet_root / config_value
+        checkpoint_path = checkpoint_value if checkpoint_value.is_absolute() else mmdet_root / checkpoint_value
+
+        self._ensure_dir_exists(mmdet_root, "ENGINE_NOT_RUNNABLE", "[mmdet_inference] Missing mmdetection directory")
+        self._ensure_file_exists(script, "ENGINE_NOT_RUNNABLE", "[mmdet_inference] Missing mmdetection inference.py")
+        self._ensure_file_exists(config_path, "ENGINE_NOT_RUNNABLE", "[mmdet_inference] Missing mmdetection config")
+        self._ensure_file_exists(checkpoint_path, "WEIGHTS_MISSING", "[mmdet_inference] Missing mmdetection checkpoint")
+
+        source_dir = str(image_root.resolve())
+        if not source_dir.endswith("\\") and not source_dir.endswith("/"):
+            source_dir = f"{source_dir}{os.sep}"
+
+        results_dir = mmdet_root / "results_mmdet"
+        results_dir.mkdir(parents=True, exist_ok=True)
+        produced = results_dir / output_txt.name
+
+        if produced.exists():
+            produced.unlink()
+
+        self._run_process_step(
+            step_name="mmdet_inference",
+            command=[
+                str(python_exe.resolve()),
+                str(script.resolve()),
+                str(config_path.resolve()),
+                str(checkpoint_path.resolve()),
+                source_dir,
+                "640",
+                "0.20",
+                "0.9999",
+                output_txt.name,
+            ],
+            cwd=mmdet_root,
+            timeout_seconds=self._settings.shiyu_grddc2022_timeout_seconds_mmdet,
+            run_log_path=run_log_path,
+            cancel_requested=cancel_requested,
+        )
+
+        if not produced.exists() or produced.stat().st_size == 0:
+            raise AdapterExecutionError(
+                "ENGINE_OUTPUT_MISSING",
+                f"[mmdet_inference] Missing or empty output: {produced}",
             )
 
         shutil.copy2(produced, output_txt)

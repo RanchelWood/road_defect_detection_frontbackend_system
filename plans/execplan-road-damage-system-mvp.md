@@ -45,9 +45,10 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-31 06:45Z) Milestone 3E closure verification completed in local-host runtime retest: both ShiYu presets reached `succeeded`, annotated overlays were confirmed, and YOLOv7 runtime logs verified `--no-trace`; environment blockers (`BUG-20260328-003`, `BUG-20260328-004`) remain open as separate QA automation issues.
 - [x] (2026-03-31 07:25Z) Test Engineer reran environment-blocker diagnostics: `BUG-20260328-003` (`WinError 5` on pytest temp dir) and `BUG-20260328-004` (`EPERM lstat C:\Users\18926` for Vitest) still reproduce despite command-level mitigations and remain triaged as infra/tooling blockers.
 - [x] (2026-03-31 09:15Z) Trailing QA blockers resolved: Team Leader patched two failing tests exposed during out-of-sandbox execution (ShiYu missing-weights adapter test and InferencePage fallback assertion), then Test Engineer verified closure evidence for both blockers (`BUG-20260328-003`: backend `6 passed`; `BUG-20260328-004`: frontend `1 file / 6 tests passed`).
+- [x] (2026-03-31 10:30Z) Milestone 3F implementation batch landed: added `shiyu-y7x640-faster-swin-w7` orchestration (YOLOv7 -> MMDetection -> merge), new ShiYu MMDetection env/settings, backend model-registry coverage, and frontend GRDDC2022-family selector coverage; Test Engineer targeted suites passed (`backend: 7 + 17 passed`, `frontend: 1 file / 7 tests passed`).
 - [x] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [x] Milestone 3E: GRDDC2022 third-engine integration using existing adapter contracts and async job APIs.
-- [ ] Milestone 3F: GRDDC2022 one-stage + two-stage ensemble demo preset (YOLOv7 + Faster-Swin + merge).
+- [ ] Milestone 3F: GRDDC2022 one-stage + two-stage ensemble demo preset (YOLOv7 + Faster-Swin + merge), implementation landed and awaiting final runtime smoke closure evidence.
 - [ ] Milestone 4A: async video inference jobs (`create + poll + cancel`) with video-specific result metadata.
 - [ ] Milestone 4B: optional WebSocket streaming for near-real-time inference after Milestone 4A stabilizes.
 - [ ] Finalize Outcomes & Retrospective with achieved behavior, gaps, and lessons.
@@ -106,6 +107,9 @@ After this work, a beginner should be able to run a web system where a user can 
 
 - Observation: ShiYu YOLOv7/YOLOv5 scripts both support `--filename` text-output control compatible with per-job orchestration.
   Evidence: `yolov7/detect.py` and `yolov5/detect.py` accept `--filename` and write line-format detections (`filename,class x1 y1 x2 y2 ...`).
+
+- Observation: ShiYu MMDetection stage expects image-directory input and writes results under its own `results_mmdet` folder.
+  Evidence: Milestone 3F adapter implementation for `mmdetection/inference.py` had to pass a trailing-separator source directory and copy output file from `mmdetection/results_mmdet/<filename>`.
 ## Decision Log
 
 - Decision: Use external `rddc2020` command-line integration for Milestone 2 instead of implementing native inference in this repo.
@@ -240,6 +244,10 @@ After this work, a beginner should be able to run a web system where a user can 
 - Decision: Job execution now uses atomic queued-claim and conditional success-finalization (`running` + `error_code is null`) with structured lifecycle logs.
   Rationale: Reduces duplicate execution race risk, protects cancellation semantics, and improves operability for triage.
   Date/Author: 2026-03-27 / Codex
+
+- Decision: Every coding cycle must end with Team Leader auto-documentation review across milestone/patch-related Markdown docs before closure.
+  Rationale: Keeps plan/contracts/ops/workflow docs synchronized with the actual branch state and avoids drift for junior contributors.
+  Date/Author: 2026-03-31 / Codex
 ## Outcomes & Retrospective
 
 This section must be updated at each milestone completion. At full completion, summarize delivered user-visible behavior, unresolved gaps, and lessons for v2 multi-engine scaling.
@@ -303,11 +311,11 @@ Post-release GRDDC runtime bugfix outcome (2026-03-28): inference no longer fail
 
 Milestone 3E verification status (2026-03-28): code implementation is complete, but formal Test Engineer closure is still pending one local-host rerun because Codex sandbox permission errors block adapter-suite and frontend-unit execution in this environment.
 
-Milestone 3F plan note (2026-03-28): shiyu-y7x640-faster-swin-w7 remains planned and blocked on Milestone 3E stability evidence from Test Engineer verification.
+Milestone 3F implementation status (2026-03-31): backend now includes `shiyu-y7x640-faster-swin-w7` with YOLOv7 + MMDetection + merge orchestration and new MMDetection runtime settings; frontend coverage confirms GRDDC2022 family filter surfaces both ShiYu presets. Final milestone closure remains gated on runtime smoke evidence for the new preset.
 
 ## Context and Orientation
 
-Current state includes the Milestone 2 MVP foundation extended through Milestone 3E in `backend/` and `frontend/` (auth, models, async inference jobs, authenticated job-image retrieval, history, and multi-engine integration). Active runtimes are `rddc2020`, `orddc2024`, and `ShiYu_SeaView_GRDDC2022`.
+Current state includes the Milestone 2 MVP foundation extended through Milestone 3F implementation in `backend/` and `frontend/` (auth, models, async inference jobs, authenticated job-image retrieval, history, and multi-engine integration). Active runtimes are `rddc2020`, `orddc2024`, and `ShiYu_SeaView_GRDDC2022`.
 
 In this repository, an inference engine means an implementation that can execute inference jobs and return normalized outputs. An inference adapter means the backend interface layer that maps generic job requests into engine-specific execution details.
 
@@ -328,7 +336,7 @@ Milestone 3C is complete. The second engine (`orddc2024-cli`) is integrated thro
 
 Milestone 3E is complete. The third engine (shiyu-grddc2022-cli) is integrated through the existing adapter contract and async job APIs, with phased presets and merged-result annotation policy.
 
-Milestone 3F (planned) adds the GRDDC2022 one-stage + two-stage demonstration preset (shiyu-y7x640-faster-swin-w7) after 3E stabilization.
+Milestone 3F is in progress. Core code for the GRDDC2022 one-stage + two-stage demonstration preset (`shiyu-y7x640-faster-swin-w7`) is implemented, and final closure depends on runtime smoke verification evidence.
 
 Milestone 4A (planned) adds async video inference jobs (`create + poll + cancel`) reusing current lifecycle patterns and history model with video-specific result metadata.
 
@@ -458,3 +466,6 @@ Plan change note (2026-03-27 / Codex): Applied UI-only confidence policy (remove
 Plan change note (2026-03-28 / Codex): Implemented Milestone 3E third-engine integration (shiyu-grddc2022-cli) with phased presets, merged-result annotated rendering, and dynamic frontend engine-family filtering.
 Plan change note (2026-03-28 / Codex): Applied Milestone 3E follow-up hardening (step-context preflight errors, deterministic missing-target parse guard, unknown engine-family frontend fallback test coverage) and logged Test Engineer verification blockers (`BUG-20260328-003/004`).
 Plan change note (2026-03-28 / Codex): Fixed GRDDC runtime failure on missing Pillow by adding a non-fatal annotated-image fallback (copy original image) and added adapter test coverage for the fallback behavior.
+Plan change note (2026-03-31 / Codex): Implemented Milestone 3F core patch (`shiyu-y7x640-faster-swin-w7` + MMDetection settings + backend/frontend targeted test coverage) and recorded Test Engineer targeted-suite evidence.
+Plan change note (2026-03-31 / Codex): Updated engineering workflow so Team Leader auto-documentation review is a mandatory end-of-coding closure step.
+

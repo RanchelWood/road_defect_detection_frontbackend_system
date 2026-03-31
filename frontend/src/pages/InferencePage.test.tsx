@@ -126,6 +126,15 @@ beforeEach(() => {
         runtime_type: "python",
       },
       {
+        model_id: "shiyu-y7x640-faster-swin-w7",
+        engine_id: "shiyu-grddc2022-cli",
+        status: "active",
+        performance_notes: "Demo two-stage preset with slower CPU profile",
+        display_name: "Shiyu Y7x640 Faster-Swin W7 (Demo two-stage, slower CPU)",
+        description: "GRDDC2022 demo two-stage preset",
+        runtime_type: "python",
+      },
+      {
         model_id: "custom-engine-model",
         engine_id: "custom-engine-v1",
         status: "active",
@@ -199,6 +208,25 @@ describe("InferencePage", () => {
     expect(filteredGroups).toEqual(["ORDDC2024 (orddc2024-cli)"]);
   });
 
+  it("shows both GRDDC2022 presets when filtering by GRDDC2022 family", async () => {
+    renderInferencePage();
+
+    const modelSelect = (await screen.findByLabelText("Model")) as HTMLSelectElement;
+    const engineFamilySelect = screen.getByLabelText("Engine family");
+
+    fireEvent.change(engineFamilySelect, { target: { value: "grddc2022" } });
+
+    await waitFor(() => {
+      expect(modelSelect.value).toBe("grddc2022-main");
+    });
+
+    const optionValues = Array.from(modelSelect.querySelectorAll("option")).map((option) => option.value);
+    expect(optionValues).toEqual(["grddc2022-main", "shiyu-y7x640-faster-swin-w7"]);
+
+    const groupLabels = Array.from(modelSelect.querySelectorAll("optgroup")).map((group) => group.label);
+    expect(groupLabels).toEqual(["GRDDC2022 (shiyu-grddc2022-cli)"]);
+  });
+
   it("restores selected model from localStorage when available", async () => {
     localStorage.setItem(SELECTED_MODEL_STORAGE_KEY, "orddc2024-accurate");
 
@@ -252,5 +280,4 @@ describe("InferencePage", () => {
     });
   });
 });
-
 

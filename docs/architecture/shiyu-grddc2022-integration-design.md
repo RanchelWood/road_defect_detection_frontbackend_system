@@ -1,9 +1,9 @@
 # ShiYu GRDDC2022 Third-Engine Integration Design
 
-Status: Milestone 3E implemented (core integration + dynamic frontend family filtering).  
-Phase follow-up: Milestone 3F planned for one-stage + two-stage ensemble demo preset.
+Status: Milestone 3E implemented (core integration + dynamic frontend family filtering). Milestone 3F core implementation landed and is awaiting final runtime smoke closure evidence.  
+Phase follow-up: close Milestone 3F with runtime verification for the demo two-stage preset.
 
-Date: 2026-03-28.
+Date: 2026-03-31.
 
 ## Goal
 
@@ -42,6 +42,11 @@ Implemented presets:
 - `shiyu-yolov7x-640`
   - YOLOv7 detect
   - parse direct output
+- `shiyu-y7x640-faster-swin-w7`
+  - YOLOv7 detect
+  - MMDetection Faster-Swin-L W7 step
+  - `merge.py`
+  - parse merged output
 
 ### Runtime wiring
 
@@ -52,6 +57,9 @@ Added runtime settings:
 - `shiyu_grddc2022_device`
 - `shiyu_grddc2022_timeout_seconds_single`
 - `shiyu_grddc2022_timeout_seconds_ensemble`
+- `shiyu_grddc2022_timeout_seconds_mmdet`
+- `shiyu_grddc2022_mmdet_config`
+- `shiyu_grddc2022_mmdet_checkpoint`
 
 Defaults are CPU-first and aligned to local machine paths.
 
@@ -100,21 +108,21 @@ Inference page engine-family selector now derives family options dynamically fro
 
 Unknown engines use normalized engine-id fallback labels.
 
-## Planned Milestone 3F Scope
+## Milestone 3F Scope (Implementation Landed)
 
-Add one additional GRDDC2022 demonstration preset:
+Implemented additional GRDDC2022 demonstration preset:
 
 - `shiyu-y7x640-faster-swin-w7`
   - YOLOv7 detect
-  - Faster-Swin inference step
+  - MMDetection Faster-Swin-L W7 inference step
   - merge
 
-3F remains blocked until 3E runtime stability is confirmed by Test Engineer evidence.
+Milestone 3F closure is gated on Test Engineer runtime smoke evidence for this preset in the integrated web flow.
 
 ## Acceptance Criteria
 
-- `/models` exposes both `shiyu-*` presets under `shiyu-grddc2022-cli`.
-- `POST /inference/jobs` with `shiyu-cpu-ensemble-default` and `shiyu-yolov7x-640` returns queued job and reaches terminal status.
+- `/models` exposes all active `shiyu-*` presets under `shiyu-grddc2022-cli`, including `shiyu-y7x640-faster-swin-w7`.
+- `POST /inference/jobs` with `shiyu-cpu-ensemble-default`, `shiyu-yolov7x-640`, and `shiyu-y7x640-faster-swin-w7` returns queued job and reaches terminal status.
 - Successful jobs return normalized detections and authenticated annotated image.
 - Ensemble annotated image reflects merged detections.
 - If backend runtime lacks `Pillow`, annotated endpoint still serves fallback copied image rather than failing job.
