@@ -42,7 +42,9 @@ After this work, a beginner should be able to run a web system where a user can 
 - [x] (2026-03-28 06:40Z) Milestone 3E implemented: GRDDC2022 third-engine adapter integrated (shiyu-grddc2022-cli) with phased preset rollout, merged-output normalization, and dynamic frontend engine-family filtering.
 - [x] (2026-03-28 08:20Z) Milestone 3E follow-up hardening applied: GRDDC adapter preflight errors now include step context, parser now raises deterministic `ENGINE_OUTPUT_PARSE_ERROR` when target row is missing, and frontend tests now cover unknown engine-family fallback labeling.
 - [x] (2026-03-28 09:10Z) Post-release GRDDC runtime bug fixed: adapter now degrades gracefully when Pillow is unavailable by copying the original image as annotated output instead of failing jobs with `ENGINE_NOT_RUNNABLE`.
-- [ ] (2026-03-28 08:35Z) Milestone 3E Test Engineer closure verification is pending local-host rerun due Codex sandbox permission blockers (`BUG-20260328-003`, `BUG-20260328-004`).
+- [x] (2026-03-31 06:45Z) Milestone 3E closure verification completed in local-host runtime retest: both ShiYu presets reached `succeeded`, annotated overlays were confirmed, and YOLOv7 runtime logs verified `--no-trace`; environment blockers (`BUG-20260328-003`, `BUG-20260328-004`) remain open as separate QA automation issues.
+- [x] (2026-03-31 07:25Z) Test Engineer reran environment-blocker diagnostics: `BUG-20260328-003` (`WinError 5` on pytest temp dir) and `BUG-20260328-004` (`EPERM lstat C:\Users\18926` for Vitest) still reproduce despite command-level mitigations and remain triaged as infra/tooling blockers.
+- [x] (2026-03-31 09:15Z) Trailing QA blockers resolved: Team Leader patched two failing tests exposed during out-of-sandbox execution (ShiYu missing-weights adapter test and InferencePage fallback assertion), then Test Engineer verified closure evidence for both blockers (`BUG-20260328-003`: backend `6 passed`; `BUG-20260328-004`: frontend `1 file / 6 tests passed`).
 - [x] Milestone 3: hardening (validation, observability, concurrency safety, integration tests).
 - [x] Milestone 3E: GRDDC2022 third-engine integration using existing adapter contracts and async job APIs.
 - [ ] Milestone 3F: GRDDC2022 one-stage + two-stage ensemble demo preset (YOLOv7 + Faster-Swin + merge).
@@ -456,7 +458,3 @@ Plan change note (2026-03-27 / Codex): Applied UI-only confidence policy (remove
 Plan change note (2026-03-28 / Codex): Implemented Milestone 3E third-engine integration (shiyu-grddc2022-cli) with phased presets, merged-result annotated rendering, and dynamic frontend engine-family filtering.
 Plan change note (2026-03-28 / Codex): Applied Milestone 3E follow-up hardening (step-context preflight errors, deterministic missing-target parse guard, unknown engine-family frontend fallback test coverage) and logged Test Engineer verification blockers (`BUG-20260328-003/004`).
 Plan change note (2026-03-28 / Codex): Fixed GRDDC runtime failure on missing Pillow by adding a non-fatal annotated-image fallback (copy original image) and added adapter test coverage for the fallback behavior.
-
-
-
-

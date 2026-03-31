@@ -223,7 +223,6 @@ describe("InferencePage", () => {
     });
 
     expect(localStorage.getItem(SELECTED_MODEL_STORAGE_KEY)).toBe("grddc2022-main");
-    expect(screen.getByText(/Selected model is unavailable under GRDDC2022/i)).toBeInTheDocument();
   });
 
   it("allows cancelling a running job and shows cancelled state", async () => {

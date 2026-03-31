@@ -128,5 +128,5 @@ Based on current plan/docs state:
 Practical interpretation:
 
 - Image inference flow is end-to-end implemented with three active engines.
-- Current in-sandbox verification has known environment blockers (`BUG-20260328-003`, `BUG-20260328-004`) that require local-host rerun evidence.
+- `BUG-20260328-003/004` were closed on 2026-03-31 with Test Engineer outside-sandbox retest evidence (`backend: 6 passed`, `frontend: 1 file / 6 tests passed`); note that Codex in-sandbox runs can still show temp/home permission limits.
 - Video capabilities are designed/planned but not yet in main runtime flow.

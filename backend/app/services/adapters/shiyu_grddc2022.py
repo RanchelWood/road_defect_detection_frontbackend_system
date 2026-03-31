@@ -244,6 +244,7 @@ class ShiyuGrddc2022Adapter(InferenceEngineAdapter):
                 "--device",
                 self._settings.shiyu_grddc2022_device,
                 "--agnostic-nms",
+                "--no-trace",
                 "--project",
                 str(project),
                 "--name",
